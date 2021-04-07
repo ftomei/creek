@@ -35,12 +35,12 @@ def search_runoff_start(w1, p15):
 
 if __name__ == '__main__':
     # read test case
-    fileName = r'.\INPUT\Test_feb2016.csv'
+    fileName = r'.\INPUT\Test_mar2015.csv'
     df = pd.read_csv(fileName)
 
     # parameters
     WHC = df.WHC[0]     # [mm] water holding capacity
-    delta = 0.5         # [hours] shift estimation - observed
+    delta = 0         # [hours] shift estimation - observed
     alpha = 0.1         # [-]  time factor
     k_soil = 1.6        # [mm/hour] infiltration
 
@@ -68,13 +68,13 @@ if __name__ == '__main__':
 
     # compute runoff
     nrIntervals = 4
-    prec = assign_prec(df.w1, nrIntervals)
+    currentPrec = assign_prec(df.w1, nrIntervals)
     currentInfiltration = k_soil * 0.25 * nrIntervals
     surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * k_soil, 0)
-    runoff = np.maximum(prec + surface_wc * df.factor.shift(nrIntervals) - currentInfiltration, 0)
+    runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - currentInfiltration, 0)
 
     # forecast water level
-    df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.2
+    df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
 
     # clean dataset (only event)
     df_event = df[df.index >= r_start]
