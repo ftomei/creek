@@ -35,12 +35,12 @@ def search_runoff_start(w1, p15):
 
 if __name__ == '__main__':
     # read test case
-    fileName = r'.\INPUT\Test_mar2015.csv'
+    fileName = r'.\INPUT\Test_nov2017.csv'
     df = pd.read_csv(fileName)
 
     # parameters
     WHC = df.WHC[0]     # [mm] water holding capacity
-    delta = 1.0         # [hours] shift estimation - observed
+    delta = 1         # [hours] shift estimation - observed
     alpha = 0.1         # [-]  time factor
     k_soil = 1.6        # [mm/hour] infiltration
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     start_index = search_runoff_start(df.w1, df.P15)
     r_start = df.index[start_index]
-    print("Runoff start: ", r_start)
+
 
     # time: nr hours after runoff start
     df['time'] = np.maximum(0, (df.index - r_start) / np.timedelta64(1, 'h'))  # [hours]
@@ -75,6 +75,11 @@ if __name__ == '__main__':
 
     # forecast water level
     df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
+
+    # compute the anticipation time of the peak
+    time_max_o = df.Livello.idxmax()
+    time_max_f = df.estLevel.idxmax()
+    delta_max = (time_max_f - time_max_o) / np.timedelta64(1, 'h')  # in hours
 
     # clean dataset (only event)
     df_event = df[df.index >= r_start]
@@ -96,8 +101,10 @@ if __name__ == '__main__':
     r, p_value = pearsonr(yo, ye)
     RMSE = np.sqrt(((ye - yo) ** 2).mean())
     peakError = ye.max() - yo.max()
-    
-    # compute time the anticipation time of the peak
+
+    #print
+    print("WHC: ", WHC, "  K: ", k_soil)
+    print("Runoff start: ", r_start, "  Observed peak: ", time_max_o, " Forecast peak: ", time_max_f, )
 
     # plot
     plt.figure(figsize=(10, 5))
@@ -111,7 +118,8 @@ if __name__ == '__main__':
     ax.plot(xo, yo, 'r.', label='Observed (shifted)')
     ax.plot(xo, ye, label='Estimated')
     ax.set_ylabel('water level [m]')
-    plt.title('R=' + str(round(r, 3)) + '   RMSE=' + str(round(RMSE, 2))
-              + '   Peak error=' + str(round(peakError, 2)), size=12)
+    plt.title('R=' + str(round(r, 3)) + '   RMSE[m]=' + str(round(RMSE, 2))
+              + '   Peak error[m]=' + str(round(peakError, 2)) + '  Peak anticipation[h]= '
+                                       + str(round(delta_max, 2)), size=12)
     plt.legend()
     plt.show()
