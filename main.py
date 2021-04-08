@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     # parameters
     WHC = df.WHC[0]     # [mm] water holding capacity
-    delta = 0         # [hours] shift estimation - observed
+    delta = 1.0         # [hours] shift estimation - observed
     alpha = 0.1         # [-]  time factor
     k_soil = 1.6        # [mm/hour] infiltration
 
