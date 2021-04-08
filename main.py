@@ -96,6 +96,8 @@ if __name__ == '__main__':
     r, p_value = pearsonr(yo, ye)
     RMSE = np.sqrt(((ye - yo) ** 2).mean())
     peakError = ye.max() - yo.max()
+    
+    # compute time the anticipation time of the peak
 
     # plot
     plt.figure(figsize=(10, 5))
