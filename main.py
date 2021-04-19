@@ -47,7 +47,7 @@ if __name__ == '__main__':
     delta = 0         # [hours] shift estimation - observed
     alpha = 0.1         # [-]  time factor
     k_soil = 1.6        # [mm/hour] infiltration
-    ts_liv = 0.2  # soglia idrometrica sotto la quale non non considero i massimi
+    ts_liv = 0.2  # [m] soglia idrometrica sotto la quale non non considero i massimi
 
     # index = date
     df['date'] = pd.to_datetime(df['Dataf'])
@@ -95,16 +95,16 @@ if __name__ == '__main__':
     # searching for multiple peaks and relative statistics
 
     idmaxrel_o = argrelextrema(df_clean.Livello.values, np.greater)  # indice dei massimi relativi osservati
-    maxO = df_clean.Livello[df_clean.index[idmaxrel_o]]  # valori dei massimi relativi osservati
+    maxObs = df_clean.Livello[df_clean.index[idmaxrel_o]]  # valori dei massimi relativi osservati
     idmaxrel_f = argrelextrema(df_clean.estLevel.values, np.greater)  # indice del massimi relativi previsti
-    maxF = df_clean.estLevel[df_clean.index[idmaxrel_f]]  # valori dei massimi relativi previsti
+    maxFor = df_clean.estLevel[df_clean.index[idmaxrel_f]]  # valori dei massimi relativi previsti
 
     # df dei valori massimi
-    frame = {'maxO': maxO, 'maxF': maxF}
+    frame = {'maxObs': maxObs, 'maxFor': maxFor}
     df_max = pd.DataFrame(frame)
     df_max = df_max[df_max >= ts_liv].dropna(axis=0, how='all')
-    array_do = df_max.maxO.dropna()
-    array_df = df_max.maxF.dropna()
+    array_do = df_max.maxObs.dropna()
+    array_df = df_max.maxFor.dropna()
 
     dt = []
     dm = []
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         listaoss.append(i)
         listafo.append(nearest)
         dt.append((nearest - i) / np.timedelta64(1, 'h'))  # calcolo il time shift
-        dm.append(df_max.maxF[nearest] - df_max.maxO[i])  # calcolo l'errore
+        dm.append(df_max.maxFor[nearest] - df_max.maxObs[i])  # calcolo l'errore
 
     # mean peaks characteristics
     mPeak_anti = np.mean(dt)
