@@ -39,7 +39,7 @@ def nearest_date(items,pivot):
 
 if __name__ == '__main__':
     # read test case
-    fileName = r'.\INPUT\Test_feb2015.csv'
+    fileName = r'.\INPUT\Test_04May2019.csv'
     df = pd.read_csv(fileName)
 
     # parameters
