@@ -3,7 +3,7 @@ import matplotlib.dates as md
 import pandas as pd
 import numpy as np
 from scipy.stats import pearsonr
-from scipy.signal import argrelextrema
+from scipy.signal import find_peaks
 import glob
 
 
@@ -41,10 +41,13 @@ def nearest_date(items,pivot):
 
 if __name__ == '__main__':
     # parameters
-    delta = 0         # [hours] shift estimation - observed
-    alpha = 0.1       # [-]  time factor
-    k_soil = 1.6      # [mm/hour] infiltration
-    ts_liv = 0.2      # soglia idrometrica sotto la quale non non considero i massimi
+    delta = 0              # [hours] shift estimation - observed
+    alpha = 0.1            # [-]  time factor
+    k_soil = 1.6           # [mm/hour] infiltration
+    peak_hmin = 0.2        # [m] hmin for maxlevel search
+    peak_prominence = 0.1 # [m] prevalenza minima del picco
+    peak_width = 0         # [timestep] minimal horizontal distance in samples between neighbouring peaks
+
 
     # read single test case
     #fileName = r'.\INPUT\Test_feb2015.csv'
@@ -106,18 +109,24 @@ if __name__ == '__main__':
             df_obs = df_shift[['Livello']]
 
             # searching for multiple peaks and relative statistics
+            peaks_obs, prop_peak_obs = find_peaks(df_clean.Livello.values, height=peak_hmin, prominence=peak_prominence,
+                                                  width=peak_width)
+            peaks_fc, prop_peak_fc = find_peaks(df_clean.estLevel.values, height=peak_hmin, prominence=peak_prominence,
+                                                  width=peak_width)
 
-            idmaxrel_o = argrelextrema(df_clean.Livello.values, np.greater)  # indice dei massimi relativi osservati
-            maxO = df_clean.Livello[df_clean.index[idmaxrel_o]]  # valori dei massimi relativi osservati
-            idmaxrel_f = argrelextrema(df_clean.estLevel.values, np.greater)  # indice del massimi relativi previsti
-            maxF = df_clean.estLevel[df_clean.index[idmaxrel_f]]  # valori dei massimi relativi previsti
+
+
+            maxOBS = df_clean.Livello[df_clean.index[peaks_obs]]
+            maxFC = df_clean.estLevel[df_clean.index[peaks_fc]]
 
             # df dei valori massimi
-            frame = {'maxO': maxO, 'maxF': maxF}
+            frame = {'maxOBS': maxOBS, 'maxFC': maxFC}
             df_max = pd.DataFrame(frame)
-            df_max = df_max[df_max >= ts_liv].dropna(axis=0, how='all')
-            array_do = df_max.maxO.dropna()
-            array_df = df_max.maxF.dropna()
+            df_max = df_max.dropna(axis=0, how='all')
+            array_do = df_max.maxOBS.dropna()
+            array_df = df_max.maxFC.dropna()
+
+            print (df_max.head())
 
             dt = []
             dm = []
@@ -129,7 +138,7 @@ if __name__ == '__main__':
                 listaoss.append(i)
                 listafo.append(nearest)
                 dt.append((nearest - i) / np.timedelta64(1, 'h'))  # calcolo il time shift
-                dm.append(df_max.maxF[nearest] - df_max.maxO[i])  # calcolo l'errore
+                dm.append(df_max.maxFC[nearest] - df_max.maxOBS[i])  # calcolo l'errore
 
             # mean peaks characteristics
             mPeak_anti = np.mean(dt)
@@ -168,6 +177,8 @@ if __name__ == '__main__':
             plt.title('R=' + str(round(r, 3)) + '   RMSE[m]=' + str(round(RMSE, 2))
                       + '   mPeak error[m]=' + str(round(mPeak_err, 2)) + '  mPeak anticipation[h]= '
                                                + str(round(mPeak_anti, 2)), size=12)
+            plt.plot(df_max.maxOBS.index, df_max.maxOBS.values, "x")
+            plt.plot(df_max.maxFC.index, df_max.maxFC.values, "x")
             plt.legend()
             #plt.show()
             plt.savefig('Prev_' + string_ini + '.png', bbox_inches='tight', dpi=300)
