@@ -43,8 +43,7 @@ if __name__ == '__main__':
     # parameters
     delta = 0              # [hours] shift estimation - observed
     alpha = 0.1            # [-]  time factor
-    k_soil = 1.6           # [mm/hour] infiltration
-    peak_hmin = 0.2        # [m] hmin for maxlevel search
+    peak_hmin = 0.1        # [m] hmin for maxlevel search
     peak_prominence = 0.1 # [m] prevalenza minima del picco
     peak_width = 0         # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
@@ -61,8 +60,12 @@ if __name__ == '__main__':
     for fileName in all_files:
             df = pd.read_csv(fileName)
 
-            # WHC
+            # WHC and k_soil
             WHC = df.WHC[0]     # [mm] water holding capacity
+            kmin = 1.6 #[mm/hour]
+            kmax = 2.6 #[mm/hour]
+            k_soil = WHC/10
+            k_soil = np.clip(k_soil, kmin, kmax)  # [mm/hour] infiltration coefficent function of initial WHC value (bounded between kmin and kmax mm/h)
 
             # index = date
             df['date'] = pd.to_datetime(df['Dataf'])
@@ -153,8 +156,8 @@ if __name__ == '__main__':
             r, p_value = pearsonr(yo, ye)
             RMSE = np.sqrt(((ye - yo) ** 2).mean())
 
-            string_ini = r_start.strftime("%b%Y")
-            val_evento = [string_ini, r, RMSE, mPeak_err, mPeak_anti]
+            string_ini = r_start.strftime("%d%m%Y")
+            val_evento = [string_ini,WHC,k_soil,r, RMSE, mPeak_err, mPeak_anti]
             list_scores.append(val_evento)
 
             #print
@@ -171,7 +174,7 @@ if __name__ == '__main__':
             ax.xaxis.set_major_formatter(xfmt)
             ax.set_ylim([0.0, 2.0])
             ax.grid(linestyle=':')
-            ax.plot(xo, yo, 'r.', label='Observed (shifted)')
+            ax.plot(xo, yo, 'r.', label='Observed')
             ax.plot(xo, ye, label='Estimated')
             ax.set_ylabel('water level [m]')
             plt.title('R=' + str(round(r, 3)) + '   RMSE[m]=' + str(round(RMSE, 2))
@@ -183,5 +186,5 @@ if __name__ == '__main__':
             #plt.show()
             plt.savefig('Prev_' + string_ini + '.png', bbox_inches='tight', dpi=300)
 
-df_out = pd.DataFrame(list_scores, columns=["date","R", "RMSE", "mP_error", "mP_ant"])
+df_out = pd.DataFrame(list_scores, columns=["date","WHC","K_soil","R", "RMSE", "mP_error", "mP_ant"])
 df_out.to_csv("Ravone_stat_tests.csv") # salva su csv
