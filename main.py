@@ -34,9 +34,12 @@ def search_runoff_start(w1, p15):
             count = 0
     return start
 
+
 def nearest_date(items,pivot):
-    nearest=min(items, key=lambda x: abs(x - pivot))
-    return nearest
+    if len(items) > 0:
+        return min(items, key=lambda x: abs(x - pivot))
+    else:
+        return -1
 
 
 if __name__ == '__main__':
@@ -63,8 +66,8 @@ if __name__ == '__main__':
             # WHC and k_soil
             WHC = df.WHC[0]     # [mm] water holding capacity
             kmin = 1.6 #[mm/hour]
-            kmax = 2.6 #[mm/hour]
-            k_soil = WHC/10
+            kmax = 4.8 #[mm/hour]
+            k_soil = WHC/6.5
             k_soil = np.clip(k_soil, kmin, kmax)  # [mm/hour] infiltration coefficent function of initial WHC value (bounded between kmin and kmax mm/h)
 
             # index = date
@@ -138,10 +141,11 @@ if __name__ == '__main__':
             # loop sulle date dei massimi osservati per associarli con i previsti
             for i in array_do.index:
                 nearest = nearest_date(array_df.index, i)  # trovo l'ora del picco più vicino a quello osservato
-                listaoss.append(i)
-                listafo.append(nearest)
-                dt.append((nearest - i) / np.timedelta64(1, 'h'))  # calcolo il time shift
-                dm.append(df_max.maxFC[nearest] - df_max.maxOBS[i])  # calcolo l'errore
+                if nearest != -1:
+                    listaoss.append(i)
+                    listafo.append(nearest)
+                    dt.append((nearest - i) / np.timedelta64(1, 'h'))  # calcolo il time shift
+                    dm.append(df_max.maxFC[nearest] - df_max.maxOBS[i])  # calcolo l'errore
 
             # mean peaks characteristics
             mPeak_anti = np.mean(dt)
