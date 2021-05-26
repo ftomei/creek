@@ -65,9 +65,9 @@ if __name__ == '__main__':
 
             # WHC and k_soil
             WHC = df.WHC[0]     # [mm] water holding capacity
-            kmin = 1.6 #[mm/hour]
-            kmax = 4.8 #[mm/hour]
-            k_soil = WHC/6.5
+            kmin = 1.5 #[mm/hour]
+            kmax = 5.0 #[mm/hour]
+            k_soil = WHC/7
             k_soil = np.clip(k_soil, kmin, kmax)  # [mm/hour] infiltration coefficent function of initial WHC value (bounded between kmin and kmax mm/h)
 
             # index = date
@@ -181,8 +181,8 @@ if __name__ == '__main__':
             ax.plot(xo, yo, 'r.', label='Observed')
             ax.plot(xo, ye, label='Estimated')
             ax.set_ylabel('water level [m]')
-            plt.title('R=' + str(round(r, 3)) + '   RMSE[m]=' + str(round(RMSE, 2))
-                      + '   mPeak error[m]=' + str(round(mPeak_err, 2)) + '  mPeak anticipation[h]= '
+            plt.title('Ksoil=' + str(round(k_soil, 1)) + '   R=' + str(round(r, 2)) + '   RMSE[m]=' + str(round(RMSE, 2))
+                      + '   mPeak error[m]=' + str(round(mPeak_err, 2)) + '  mPeak shift[h]='
                                                + str(round(mPeak_anti, 2)), size=12)
             plt.plot(df_max.maxOBS.index, df_max.maxOBS.values, "x")
             plt.plot(df_max.maxFC.index, df_max.maxFC.values, "x")
