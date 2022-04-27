@@ -116,11 +116,11 @@ def main():
 
         # compute runoff
         nrIntervals = 4
-        waterOut = (k_soil + k_crop) * 0.25 * nrIntervals
+        hourlyWaterOut = k_soil + k_crop
         currentPrec = assign_prec(df.w1, nrIntervals)
-        surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * (k_soil + k_crop), 0)
-        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - waterOut, 0)
-        # runoff = assign_runoff(surface_wc, currentPrec, waterOut, start_index)
+        surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * hourlyWaterOut, 0)
+        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - hourlyWaterOut, 0)
+        # runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index)
 
         # forecast water level
         df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
