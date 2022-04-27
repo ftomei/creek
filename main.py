@@ -34,16 +34,15 @@ def search_runoff_start(w1, p15):
     start = 0
     noPrecCount = 0
     for i in range(len(w1)):
-        if w1[i] > 0:
-            if start == 0:
-                start = i
-                noPrecCount = 0
+        if start == 0 and w1[i] > 0:
+            start = i
+            noPrecCount = 0
         if p15[i] == 0:
             noPrecCount += 1
         else:
-            if start > 0 and noPrecCount >= 2 and w1[i] < 5:
+            if start > 0 and noPrecCount >= 2 and w1[i] < 4:
                 start = i
-                noPrecCount = 0
+            noPrecCount = 0
     return start
 
 
@@ -54,14 +53,22 @@ def nearest_date(items, pivot):
         return -1
 
 
-# [mm/hour] infiltration coefficient function of WHC value
-# bounded between kmin and kmax
-def getKSoil(currentWHC):
-    k = currentWHC / 7.
-    k_min = 1.5  # [mm/hour]
-    k_max = 5.0  # [mm/hour]
-    k = min(max(k, k_min), k_max)
-    return k
+# [mm/hour] infiltration
+def getKSoil(currentWHC, currentDate):
+    if currentDate.month > 6 and currentWHC > 30:
+        # soil cracking
+        return 5.0
+    else:
+        # ksat
+        return 1.5
+
+
+# [mm/hour] crop interception
+def getKCrop(currentDate):
+    if 3 < currentDate.month < 11:
+        return 0.3
+    else:
+        return 0.0
 
 
 def main():
@@ -80,13 +87,15 @@ def main():
     for fileName in all_files:
         df = pd.read_csv(fileName)
 
-        WHC = df.WHC[0]  # [mm] water holding capacity
-        k_soil = getKSoil(WHC)
-        k_soil = 1.5
-
         # index = date
         df['date'] = pd.to_datetime(df['Dataf'])
         df.index = df['date']
+        date0 = df.date[0]
+
+        # [mm] water holding capacity
+        WHC = df.WHC[0]
+        k_soil = getKSoil(WHC, date0)
+        k_crop = getKCrop(date0)
 
         # clean dataset
         del df['WHC']
@@ -107,11 +116,11 @@ def main():
 
         # compute runoff
         nrIntervals = 4
-        maxInfiltration = k_soil * 0.25 * nrIntervals
+        waterOut = (k_soil + k_crop) * 0.25 * nrIntervals
         currentPrec = assign_prec(df.w1, nrIntervals)
-        surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * k_soil, 0)
-        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - maxInfiltration, 0)
-        # runoff = assign_runoff(surface_wc, currentPrec, maxInfiltration, start_index)
+        surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * (k_soil + k_crop), 0)
+        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - waterOut, 0)
+        # runoff = assign_runoff(surface_wc, currentPrec, waterOut, start_index)
 
         # forecast water level
         df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
@@ -157,8 +166,8 @@ def main():
                 dm.append(df_max.maxFC[nearest] - df_max.maxOBS[i])  # calcolo l'errore
 
         # mean peaks characteristics
-        mPeak_anti = np.mean(dt)
-        mPeak_err = np.mean(dm)
+        mPeak_anti = round(np.mean(dt), 2)
+        mPeak_err = round(np.mean(dm), 2)
 
         df_visu = df_est.join(df_obs, how='outer').dropna()
 
@@ -167,7 +176,9 @@ def main():
         ye = df_visu.estLevel
 
         r, p_value = pearsonr(yo, ye)
+        r = round(r, 2)
         RMSE = np.sqrt(((ye - yo) ** 2).mean())
+        RMSE = round(RMSE, 2)
 
         string_ini = r_start.strftime("%Y_%m_%d")
         val_evento = [string_ini, WHC, k_soil, r, RMSE, mPeak_err, mPeak_anti]
@@ -190,9 +201,8 @@ def main():
         ax.plot(xo, yo, 'r.', label='Observed')
         ax.plot(xo, ye, label='Estimated')
         ax.set_ylabel('water level [m]')
-        plt.title('Ksoil=' + str(round(k_soil, 1)) + '   R=' + str(round(r, 2)) + '   RMSE[m]=' + str(round(RMSE, 2))
-                  + '   mPeak error[m]=' + str(round(mPeak_err, 2)) + '  mPeak shift[h]='
-                  + str(round(mPeak_anti, 2)), size=12)
+        plt.title('Ksoil=' + str(k_soil) + '   R=' + str(r) + '   RMSE[m]=' + str(RMSE)
+                  + '   mPeak error[m]=' + str(mPeak_err) + '  mPeak shift[h]=' + str(mPeak_anti), size=12)
         plt.plot(df_max.maxOBS.index, df_max.maxOBS.values, "x")
         plt.plot(df_max.maxFC.index, df_max.maxFC.values, "x")
         plt.legend()
