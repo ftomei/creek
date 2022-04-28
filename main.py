@@ -18,32 +18,40 @@ def assign_prec(w1, shift):
     return prec
 
 
-def assign_runoff(surfaceWaterContent, currentPrec, waterOut, start_index):
+#step [s]
+def assign_runoff(surfaceWaterContent, currentPrec, waterOut, start_index, step):
+    alpha = 0.04 * int(step / 900)  # [-]  time factor
     runoff = np.zeros(len(currentPrec))
     for i in range(len(currentPrec)):
         if i >= start_index:
             runoff[i] = np.maximum(surfaceWaterContent[i] + currentPrec[i] - waterOut, 0)
             for j in range(i+1, len(surfaceWaterContent)):
-                surfaceWaterContent[j] = max(0, surfaceWaterContent[j] - runoff[i] * 0.04)
+                surfaceWaterContent[j] = max(0, surfaceWaterContent[j] - runoff[i] * alpha)
         else:
             runoff[i] = 0
     return runoff
 
 
-def search_runoff_start(w1, p15):
-    start = 0
-    noPrecCount = 0
+# step [s]
+def search_runoff_start(w1, prec, step):
+    maxZeroPrec = int(1800 / step)
+    checkStart = True
+    startIndex = 0
+    zeroPrecCount = 0
     for i in range(len(w1)):
-        if start == 0 and w1[i] > 0:
-            start = i
-            noPrecCount = 0
-        if p15[i] == 0:
-            noPrecCount += 1
+        if checkStart:
+            if w1[i] > 0:
+                checkStart = False
+                startIndex = i
+                zeroPrecCount = 0
         else:
-            if start > 0 and noPrecCount >= 2 and w1[i] < 4:
-                start = i
-            noPrecCount = 0
-    return start
+            if prec[i] == 0:
+                zeroPrecCount += 1
+            else:
+                if zeroPrecCount >= maxZeroPrec and w1[i] < 5:
+                    startIndex = i
+                zeroPrecCount = 0
+    return startIndex
 
 
 def nearest_date(items, pivot):
@@ -80,21 +88,18 @@ def main():
 
     path = ".\\INPUT\\"
     # insert complete filename to read a single test case
-    all_files = glob.glob(path + "/Test_*.csv")
+    all_files = glob.glob(path + "/Test_2015-03*.csv")
 
     # loop on several cases
     list_scores = []
     for fileName in all_files:
         df = pd.read_csv(fileName)
-
-        # index = date
-        df['date'] = pd.to_datetime(df['Dataf'])
-        df.index = df['date']
+        df.index = pd.to_datetime(df['Dataf'])
 
         # compute step
-        date0 = df.date[0]
-        date1 = df.date[1]
-        step = (date1 - date0).seconds
+        date0 = df.index[0]
+        date1 = df.index[1]
+        step = (date1 - date0).seconds  # [s]
         nrIntervals = int(3600 / step)
 
         # [mm] water holding capacity
@@ -104,14 +109,12 @@ def main():
 
         # clean dataset
         del df['WHC']
-        del df['date']
-        del df['Datai']
         del df['Dataf']
 
         # compute w1
         df['w1'] = df['P15'].cumsum() - WHC
 
-        start_index = search_runoff_start(df.w1, df.P15)
+        start_index = search_runoff_start(df.w1, df.P15, step)
         r_start = df.index[start_index]
 
         # time: nr hours after runoff start
@@ -124,7 +127,7 @@ def main():
         currentPrec = assign_prec(df.w1, nrIntervals)
         surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * hourlyWaterOut, 0)
         runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - hourlyWaterOut, 0)
-        #runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index)
+        # runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index, step)
 
         # forecast water level
         df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
