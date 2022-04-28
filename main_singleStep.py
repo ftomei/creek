@@ -7,53 +7,6 @@ from scipy.signal import find_peaks
 import glob
 
 
-def assign_prec(w1, shift):
-    prec = np.zeros(len(w1))
-    for i in range(len(prec)):
-        if w1[i] > 0:
-            if w1[i - shift] <= 0:
-                prec[i] = w1[i]
-            else:
-                prec[i] = w1[i] - w1[i - shift]
-    return prec
-
-
-# step [s]
-def assign_runoff(surfaceWaterContent, currentPrec, waterOut, start_index, step):
-    alpha = 0.04 * int(step / 900)  # [-]  time factor
-    runoff = np.zeros(len(currentPrec))
-    for i in range(len(currentPrec)):
-        if i >= start_index:
-            runoff[i] = np.maximum(surfaceWaterContent[i] + currentPrec[i] - waterOut, 0)
-            for j in range(i+1, len(surfaceWaterContent)):
-                surfaceWaterContent[j] = max(0, surfaceWaterContent[j] - runoff[i] * alpha)
-        else:
-            runoff[i] = 0
-    return runoff
-
-
-# step [s]
-def search_runoff_start(w1, prec, step):
-    maxZeroPrec = max(round(1800 / step), 1)
-    checkStart = True
-    startIndex = 0
-    zeroPrecCount = 0
-    for i in range(len(w1)):
-        if checkStart:
-            if w1[i] > 0:
-                checkStart = False
-                startIndex = i
-                zeroPrecCount = 0
-        else:
-            if prec[i] == 0:
-                zeroPrecCount += 1
-            else:
-                if zeroPrecCount >= maxZeroPrec and w1[i] < 5:
-                    startIndex = i
-                zeroPrecCount = 0
-    return startIndex
-
-
 def nearest_date(items, pivot):
     if len(items) > 0:
         return min(items, key=lambda x: abs(x - pivot))
@@ -61,18 +14,18 @@ def nearest_date(items, pivot):
         return -1
 
 
-# [mm/hour] infiltration
-def getKSoil(currentWHC, currentDate):
+# [mm/hour]
+def getSoilInfiltration(currentWHC, currentDate):
     if currentDate.month > 6 and currentWHC > 30:
         # soil cracking
         return 5.0
     else:
-        # ksat
+        # saturated soil conductivity
         return 1.5
 
 
-# [mm/hour] crop interception
-def getKCrop(currentDate):
+# [mm/hour]
+def getCropInterception(currentDate):
     if 3 < currentDate.month < 11:
         return 0.3
     else:
@@ -81,9 +34,8 @@ def getKCrop(currentDate):
 
 def main():
     # parameters
-    alpha = 0.1  # [-]  time factor
-    peak_hmin = 0.1  # [m] hmin for maxlevel search
-    peak_prominence = 0.1  # [m] prevalenza minima del picco
+    peak_hmin = 0.1  # [m] hmin for peak search
+    peak_prominence = 0.1  # [m] minimum peak prominence
     peak_width = 0  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
     inputPath = ".\\INPUT\\"
@@ -97,45 +49,53 @@ def main():
         df = pd.read_csv(fileName)
         df.index = pd.to_datetime(df['Dataf'])
 
-        # compute step
+        # compute time step
         date0 = df.index[0]
         date1 = df.index[1]
-        step = (date1 - date0).seconds  # [s]
-        nrIntervals = int(3600 / step)
+        timeStep = (date1 - date0).seconds          # [s]
+        nrIntervals = int(3600 / timeStep)
 
         # [mm] water holding capacity
         WHC = df.WHC[0]
-        k_soil = getKSoil(WHC, date0)
-        k_crop = getKCrop(date0)
 
-        # clean dataset
-        del df['WHC']
-        del df['Dataf']
+        # [mm/h] soil infiltration and crop interception
+        hourlyInfiltration = getSoilInfiltration(WHC, date0)    # [mm/h]
+        hourlyInterception = getCropInterception(date0)         # [mm/h]
+        infiltration = hourlyInfiltration / nrIntervals
+        interception = hourlyInterception / nrIntervals
 
-        # compute w1
-        df['w1'] = df['P15'].cumsum() - WHC
+        # [-] runoff decay factor
+        alpha = 0.16 / nrIntervals
 
-        start_index = search_runoff_start(df.w1, df.P15, step)
+        # rainfall [mm]
+        rainfall = df['P15']
+
+        # estimation vector
+        estLevel = np.zeros(len(rainfall))
+
+        # surface water content [mm]
+        w = -WHC
+        start_index = 0
+        for i in range(len(rainfall)):
+            if w <= 0:
+                # phase 1: soil saturation
+                w += rainfall[i]
+                if w > 0:
+                    start_index = i
+            else:
+                # phase 2: runoff
+                w0 = w * (1 - alpha)
+                prec = max(rainfall[i] - interception, 0)
+                w = max(w0 + prec - infiltration, 0)
+                # water level [m]
+                estLevel[i] = 3.8 / (1 + 20 * np.exp(-0.15 * w)) - 0.15
+
+        df['estLevel'] = estLevel
         r_start = df.index[start_index]
 
-        # time: nr hours after runoff start
-        df['time'] = np.maximum(0, (df.index - r_start) / np.timedelta64(1, 'h'))  # [hours]
-        # time factor
-        df['factor'] = np.exp(-alpha * df.time)
-
-        # compute runoff
-        hourlyWaterOut = k_soil + k_crop
-        currentPrec = assign_prec(df.w1, nrIntervals)
-        surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * hourlyWaterOut, 0)
-        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - hourlyWaterOut, 0)
-        # runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index, step)
-
-        # forecast water level
-        df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
-
         # clean dataset (only event)
-        df_event = df[df.index >= r_start]
-        df_clean = df_event[df_event['Livello'].notna()]
+        # df_event = df[df.index >= r_start]
+        df_clean = df[df['Livello'].notna()]
 
         # estimation vector
         df_est = df_clean[['estLevel']]
@@ -189,11 +149,11 @@ def main():
         RMSE = round(RMSE, 2)
 
         string_ini = r_start.strftime("%Y_%m_%d")
-        val_evento = [string_ini, WHC, k_soil, r, RMSE, mPeak_err, mPeak_anti]
+        val_evento = [string_ini, WHC, infiltration, r, RMSE, mPeak_err, mPeak_anti]
         list_scores.append(val_evento)
 
         # print
-        print("WHC: ", WHC, "  K: ", k_soil, "  Runoff start: ", r_start)
+        print("WHC: ", WHC, "  K: ", hourlyInfiltration, "  Runoff start: ", r_start)
         print("Observed peaks: ", listaoss)
         print("Forecast peaks: ", listafo)
 
@@ -209,7 +169,7 @@ def main():
         ax.plot(xo, yo, 'r.', label='Observed')
         ax.plot(xo, ye, label='Estimated')
         ax.set_ylabel('water level [m]')
-        plt.title('Ksoil=' + str(k_soil) + '   R=' + str(r) + '   RMSE[m]=' + str(RMSE)
+        plt.title('Inf=' + str(hourlyInfiltration) + '   R=' + str(r) + '   RMSE[m]=' + str(RMSE)
                   + '   mPeak error[m]=' + str(mPeak_err) + '  mPeak shift[h]=' + str(mPeak_anti), size=12)
         plt.plot(df_max.maxOBS.index, df_max.maxOBS.values, "x")
         plt.plot(df_max.maxFC.index, df_max.maxFC.values, "x")
@@ -217,7 +177,7 @@ def main():
         # plt.show()
         plt.savefig(outputPath + "Prev_" + string_ini + ".png", bbox_inches='tight', dpi=300)
 
-    df_out = pd.DataFrame(list_scores, columns=["date", "WHC", "K_soil", "R", "RMSE", "mP_error", "mP_ant"])
+    df_out = pd.DataFrame(list_scores, columns=["date", "WHC", "Inf", "R", "RMSE", "mP_error", "mP_ant"])
     df_out.to_csv(outputPath + "Ravone_stat_tests.csv")  # salva su csv
 
 
