@@ -86,9 +86,10 @@ def main():
     peak_prominence = 0.1  # [m] prevalenza minima del picco
     peak_width = 0  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
-    path = ".\\INPUT\\"
+    inputPath = ".\\INPUT\\"
+    outputPath = ".\\OUTPUT\\"
     # insert complete filename to read a single test case
-    all_files = glob.glob(path + "/Test_*.csv")
+    all_files = glob.glob(inputPath + "Test_*.csv")
 
     # loop on several cases
     list_scores = []
@@ -214,10 +215,10 @@ def main():
         plt.plot(df_max.maxFC.index, df_max.maxFC.values, "x")
         plt.legend()
         # plt.show()
-        plt.savefig('Prev_' + string_ini + '.png', bbox_inches='tight', dpi=300)
+        plt.savefig(outputPath + "Prev_" + string_ini + ".png", bbox_inches='tight', dpi=300)
 
     df_out = pd.DataFrame(list_scores, columns=["date", "WHC", "K_soil", "R", "RMSE", "mP_error", "mP_ant"])
-    df_out.to_csv("Ravone_stat_tests.csv")  # salva su csv
+    df_out.to_csv(outputPath + "Ravone_stat_tests.csv")  # salva su csv
 
 
 main()
