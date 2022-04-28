@@ -74,21 +74,21 @@ def main():
         estLevel = np.zeros(len(rainfall))
 
         # surface water content [mm]
-        w = -WHC
+        swc = -WHC
         start_index = 0
         for i in range(len(rainfall)):
-            if w <= 0:
+            if swc <= 0:
                 # phase 1: soil saturation
-                w += rainfall[i]
-                if w > 0:
+                swc += rainfall[i]
+                if swc > 0:
                     start_index = i
             else:
                 # phase 2: runoff
-                w0 = w * (1 - alpha)
+                w0 = swc * (1 - alpha)
                 prec = max(rainfall[i] - interception, 0)
-                w = max(w0 + prec - infiltration, 0)
+                swc = max(w0 + prec - infiltration, 0)
                 # water level [m]
-                estLevel[i] = 3.8 / (1 + 20 * np.exp(-0.15 * w)) - 0.15
+                estLevel[i] = 3.8 / (1 + 20 * np.exp(-0.15 * swc)) - 0.15
 
         df['estLevel'] = estLevel
         r_start = df.index[start_index]
