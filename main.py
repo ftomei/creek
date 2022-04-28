@@ -18,11 +18,11 @@ def assign_prec(w1, shift):
     return prec
 
 
-def assign_runoff(surfaceWaterContent, currentPrec, maxInfiltration, start_index):
+def assign_runoff(surfaceWaterContent, currentPrec, waterOut, start_index):
     runoff = np.zeros(len(currentPrec))
     for i in range(len(currentPrec)):
         if i >= start_index:
-            runoff[i] = np.maximum(surfaceWaterContent[i] + currentPrec[i] - maxInfiltration, 0)
+            runoff[i] = np.maximum(surfaceWaterContent[i] + currentPrec[i] - waterOut, 0)
             for j in range(i+1, len(surfaceWaterContent)):
                 surfaceWaterContent[j] = max(0, surfaceWaterContent[j] - runoff[i] * 0.04)
         else:
@@ -90,7 +90,12 @@ def main():
         # index = date
         df['date'] = pd.to_datetime(df['Dataf'])
         df.index = df['date']
+
+        # compute step
         date0 = df.date[0]
+        date1 = df.date[1]
+        step = (date1 - date0).seconds
+        nrIntervals = int(3600 / step)
 
         # [mm] water holding capacity
         WHC = df.WHC[0]
@@ -115,12 +120,11 @@ def main():
         df['factor'] = np.exp(-alpha * df.time)
 
         # compute runoff
-        nrIntervals = 4
         hourlyWaterOut = k_soil + k_crop
         currentPrec = assign_prec(df.w1, nrIntervals)
         surface_wc = np.maximum(df.w1.shift(nrIntervals) - df.time.shift(nrIntervals) * hourlyWaterOut, 0)
-        runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - hourlyWaterOut, 0)
-        # runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index)
+        #runoff = np.maximum(currentPrec + surface_wc * df.factor.shift(nrIntervals) - hourlyWaterOut, 0)
+        runoff = assign_runoff(surface_wc, currentPrec, hourlyWaterOut, start_index)
 
         # forecast water level
         df['estLevel'] = 3.8 / (1 + 20 * np.exp(-0.15 * runoff)) - 0.15
