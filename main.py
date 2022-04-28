@@ -34,7 +34,7 @@ def assign_runoff(surfaceWaterContent, currentPrec, waterOut, start_index, step)
 
 # step [s]
 def search_runoff_start(w1, prec, step):
-    maxZeroPrec = int(1800 / step)
+    maxZeroPrec = max(round(1800 / step), 1)
     checkStart = True
     startIndex = 0
     zeroPrecCount = 0
@@ -88,7 +88,7 @@ def main():
 
     path = ".\\INPUT\\"
     # insert complete filename to read a single test case
-    all_files = glob.glob(path + "/Test_2015-03*.csv")
+    all_files = glob.glob(path + "/Test_*.csv")
 
     # loop on several cases
     list_scores = []
