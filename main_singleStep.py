@@ -36,7 +36,7 @@ def main():
     # parameters
     peak_hmin = 0.1  # [m] hmin for peak search
     peak_prominence = 0.1  # [m] minimum peak prominence
-    peak_width = 0  # [timestep] minimal horizontal distance in samples between neighbouring peaks
+    peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
     inputPath = ".\\INPUT\\"
     outputPath = ".\\OUTPUT\\"
