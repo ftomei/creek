@@ -73,6 +73,8 @@ def main():
 
         # [mm] water holding capacity
         WHC = df.WHC[0]
+        dateStr = date0.strftime("%Y_%m_%d")
+        print(dateStr, "   WHC: ", WHC)
 
         # [mm] precipitation
         precipitation = df['P15']
@@ -82,12 +84,9 @@ def main():
 
         # surface water content [mm]
         swc = -WHC
-        start_index = 0
         for i in range(len(precipitation)):
             swc, waterLevel = getWaterLevel(swc, precipitation[i], WHC, date0, timeStep)
             estLevel[i] = waterLevel
-            if swc > 0 and start_index == 0:
-                start_index = i
 
         df['estLevel'] = estLevel
 
@@ -104,10 +103,6 @@ def main():
         yo = df_visu.Livello
         ye = df_visu.estLevel
 
-        r_start = df.index[start_index]
-        string_ini = r_start.strftime("%Y_%m_%d")
-        print("WHC: ", WHC, "  Runoff start: ", r_start)
-
         # plot
         plt.figure(figsize=(10, 5))
         plt.subplots_adjust(bottom=0.2)
@@ -121,8 +116,7 @@ def main():
         ax.plot(xo, ye, label='Estimated')
         ax.set_ylabel('water level [m]')
         plt.legend()
-        # plt.show()
-        plt.savefig(outputPath + "Prev_" + string_ini + ".png", bbox_inches='tight', dpi=300)
+        plt.savefig(outputPath + "Prev_" + dateStr + ".png", bbox_inches='tight', dpi=300)
 
 
 main()
