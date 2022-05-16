@@ -118,11 +118,11 @@ def main():
                         if previousPrec[j] != NODATA:
                             swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
 
-            # compute swc waterLevel
+            # compute current soil water content and water level
             swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
             estLevel[i] = waterLevel
 
-            # save precipitation
+            # save previous precipitation
             previousPrec[indexPreviousPrec] = precipitation[i]
             indexPreviousPrec += 1
 
