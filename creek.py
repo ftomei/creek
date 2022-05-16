@@ -69,7 +69,6 @@ def main():
     all_files = glob.glob(inputPath + "Test_*.csv")
 
     # loop on several cases
-    list_scores = []
     for fileName in all_files:
         df = pd.read_csv(fileName)
         df.index = pd.to_datetime(df['Dataf'])
@@ -80,15 +79,16 @@ def main():
         # [mm] precipitation
         precipitation = df['P15']
 
-        # estimation vector
-        estLevel = np.zeros(len(precipitation))
-
-        # array to store previous prec
+        # [mm] previous precipitation vector
         nrIntervals = int(3600 / timeStep)
         previousPrec = np.zeros(24 * nrIntervals + 1)
         initializeArray(previousPrec)
-
         indexPreviousPrec = 0
+
+        # [m] estimated Level vector
+        estLevel = np.zeros(len(precipitation))
+
+        # initialize with first value
         currentDate = df.index[0]
         dateStr = currentDate.strftime("%Y_%m_%d")
         currentWHC = df.WHC[0]
@@ -99,13 +99,13 @@ def main():
         for i in range(len(precipitation)):
             currentDate = df.index[i]
 
-            # hour zero: initialize previous prec
+            # 00:00 initialize previousPrec and save current swc
             if currentDate.hour == 0 and currentDate.minute == 0:
                 initializeArray(previousPrec)
                 indexPreviousPrec = 0
                 swc0 = swc
 
-            # new value of WHC
+            # new value of WHC: recompute swc using previous precipitation
             if not pd.isna(df.WHC[i]):
                 currentWHC = df.WHC[i]
                 dateStr = currentDate.strftime("%Y_%m_%d")
@@ -116,9 +116,11 @@ def main():
                         if previousPrec[j] != NODATA:
                             swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
 
+            # update swc and compute waterLevel
             swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
             estLevel[i] = waterLevel
 
+            # save precipitation
             previousPrec[indexPreviousPrec] = precipitation[i]
             indexPreviousPrec += 1
 
