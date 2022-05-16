@@ -100,7 +100,7 @@ def main():
             currentDate = df.index[i]
 
             # hour zero: initialize previous prec
-            if currentDate.hour == 0 and indexPreviousPrec > nrIntervals:
+            if currentDate.hour == 0 and currentDate.minute == 0:
                 initializeArray(previousPrec)
                 indexPreviousPrec = 0
                 swc0 = swc
@@ -113,7 +113,8 @@ def main():
                 if swc0 <= 0:
                     swc = -currentWHC
                     for j in range(indexPreviousPrec):
-                        swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
+                        if previousPrec[j] != NODATA:
+                            swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
 
             swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
             estLevel[i] = waterLevel
