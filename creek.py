@@ -92,7 +92,9 @@ def main():
         currentDate = df.index[0]
         dateStr = currentDate.strftime("%Y_%m_%d")
         currentWHC = df.WHC[0]
+        # [mm] current soil water content
         swc = -currentWHC
+        # [mm] soil water content at 00:00
         swc0 = swc
 
         # main cycle
@@ -105,7 +107,7 @@ def main():
                 indexPreviousPrec = 0
                 swc0 = swc
 
-            # new value of WHC: recompute swc using previous precipitation
+            # new value of WHC: update swc using previous precipitation
             if not pd.isna(df.WHC[i]):
                 currentWHC = df.WHC[i]
                 dateStr = currentDate.strftime("%Y_%m_%d")
@@ -116,7 +118,7 @@ def main():
                         if previousPrec[j] != NODATA:
                             swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
 
-            # update swc and compute waterLevel
+            # compute swc waterLevel
             swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
             estLevel[i] = waterLevel
 
