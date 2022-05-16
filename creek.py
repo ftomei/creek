@@ -6,6 +6,9 @@ import numpy as np
 import glob
 
 
+NODATA = -9999
+
+
 # hourly soil infiltration [mm/hour]
 def getSoilInfiltration(WHC, currentDate):
     if currentDate.month > 6 and WHC > 30:
@@ -54,6 +57,11 @@ def getWaterLevel(swc, prec, WHC, currentDate, timeStep):
     return swc, waterLevel
 
 
+def initializeArray(myArray):
+    for i in range(len(myArray)):
+        myArray[i] = NODATA
+
+
 def main():
     inputPath = ".\\INPUT\\"
     outputPath = ".\\OUTPUT\\"
@@ -66,15 +74,8 @@ def main():
         df = pd.read_csv(fileName)
         df.index = pd.to_datetime(df['Dataf'])
 
-        # compute time step
-        date0 = df.index[0]
-        date1 = df.index[1]
-        timeStep = (date1 - date0).seconds  # [s]
-
-        # [mm] water holding capacity
-        WHC = df.WHC[0]
-        dateStr = date0.strftime("%Y_%m_%d")
-        print(dateStr, "   WHC: ", WHC)
+        # time step
+        timeStep = (df.index[1] - df.index[0]).seconds  # [s]
 
         # [mm] precipitation
         precipitation = df['P15']
@@ -82,18 +83,51 @@ def main():
         # estimation vector
         estLevel = np.zeros(len(precipitation))
 
-        # surface water content [mm]
-        swc = -WHC
+        # array to store previous prec
+        nrIntervals = int(3600 / timeStep)
+        previousPrec = np.zeros(24 * nrIntervals + 1)
+        initializeArray(previousPrec)
+
+        indexPreviousPrec = 0
+        currentDate = df.index[0]
+        dateStr = currentDate.strftime("%Y_%m_%d")
+        currentWHC = df.WHC[0]
+        swc = -currentWHC
+        swc0 = swc
+
+        # main cycle
         for i in range(len(precipitation)):
-            swc, waterLevel = getWaterLevel(swc, precipitation[i], WHC, date0, timeStep)
+            currentDate = df.index[i]
+
+            # hour zero: initialize previous prec
+            if currentDate.hour == 0 and indexPreviousPrec > nrIntervals:
+                initializeArray(previousPrec)
+                indexPreviousPrec = 0
+                swc0 = swc
+
+            # new value of WHC
+            if not pd.isna(df.WHC[i]):
+                currentWHC = df.WHC[i]
+                dateStr = currentDate.strftime("%Y_%m_%d")
+                print(dateStr, "   WHC: ", currentWHC, "   SWC0:", round(swc0, 2))
+                if swc0 <= 0:
+                    swc = -currentWHC
+                    for j in range(indexPreviousPrec):
+                        swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
+
+            swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
             estLevel[i] = waterLevel
 
-        df['estLevel'] = estLevel
+            previousPrec[indexPreviousPrec] = precipitation[i]
+            indexPreviousPrec += 1
 
         # clean dataset
+        df['estLevel'] = estLevel
         df_clean = df[df['Livello'].notna()]
+
         # estimation vector
         df_est = df_clean[['estLevel']]
+
         # observed vector
         df_obs = df_clean[['Livello']]
 
