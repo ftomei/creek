@@ -1,10 +1,8 @@
 # creek model
-import matplotlib.pyplot as plt
-import matplotlib.dates as md
 import pandas as pd
 import numpy as np
-import glob
-
+import matplotlib.pyplot as plt
+import matplotlib.dates as md
 
 NODATA = -9999
 
@@ -27,11 +25,11 @@ def getCropInterception(currentDate):
         return 0.0
 
 
-# estimate water level [m]
+# update swc and estimate current water level [m]
 # swc [mm] = surface water content
 # WHC [mm] = water holding capacity at the start of the day
 # prec [mm] = precipitation during the timeStep [s]
-def getWaterLevel(swc, prec, WHC, currentDate, timeStep):
+def computeWaterLevel(swc, prec, WHC, currentDate, timeStep):
     nrIntervals = int(3600 / timeStep)
 
     # [-] runoff decay factor
@@ -65,97 +63,94 @@ def initializeArray(myArray):
 def main():
     inputPath = ".\\INPUT\\"
     outputPath = ".\\OUTPUT\\"
-    # insert complete filename to read a single test case
-    all_files = glob.glob(inputPath + "Test_*.csv")
+    fileName = inputPath + "Test_2022-04-21.csv"
 
-    # loop on several cases
-    for fileName in all_files:
-        df = pd.read_csv(fileName)
-        df.index = pd.to_datetime(df['Dataf'])
+    df = pd.read_csv(fileName)
+    df.index = pd.to_datetime(df['Dataf'])
 
-        # time step
-        timeStep = (df.index[1] - df.index[0]).seconds  # [s]
+    # time step
+    timeStep = (df.index[1] - df.index[0]).seconds  # [s]
 
-        # [mm] precipitation
-        precipitation = df['P15']
+    # [mm] precipitation
+    precipitation = df['P15']
 
-        # [mm] previous precipitation vector
-        nrIntervals = int(3600 / timeStep)
-        previousPrec = np.zeros(24 * nrIntervals + 1)
-        initializeArray(previousPrec)
-        indexPreviousPrec = 0
+    # [mm] previous precipitation vector
+    nrIntervals = int(3600 / timeStep)
+    previousPrec = np.zeros(24 * nrIntervals + 1)
+    initializeArray(previousPrec)
+    indexPreviousPrec = 0
 
-        # [m] estimated Level vector
-        estLevel = np.zeros(len(precipitation))
+    # [m] estimated Level vector
+    estLevel = np.zeros(len(precipitation))
 
-        # initialize with first value
-        currentDate = df.index[0]
-        dateStr = currentDate.strftime("%Y_%m_%d")
-        currentWHC = df.WHC[0]
-        # [mm] current soil water content
-        swc = -currentWHC
-        # [mm] soil water content at 00:00
-        swc0 = swc
+    # initialize with first value
+    currentDate = df.index[0]
+    dateStr = currentDate.strftime("%Y_%m_%d")
+    currentWHC = df.WHC[0]
+    # [mm] current surface  water content
+    swc = -currentWHC
+    # [mm] surface water content at 00:00
+    swc0 = swc
 
-        # main cycle
-        for i in range(len(precipitation)):
-            currentDate = df.index[i]
+    # main cycle
+    for i in range(len(precipitation)):
+        currentDate = df.index[i]
 
-            # 00:00 initialize previousPrec and save current swc
-            if currentDate.hour == 0 and currentDate.minute == 0:
-                initializeArray(previousPrec)
-                indexPreviousPrec = 0
-                swc0 = swc
+        # 00:00 initialize previous precipitation and save current swc
+        if currentDate.hour == 0 and currentDate.minute == 0:
+            initializeArray(previousPrec)
+            indexPreviousPrec = 0
+            swc0 = swc
 
-            # new value of WHC: update swc using previous precipitation
-            if not pd.isna(df.WHC[i]):
-                currentWHC = df.WHC[i]
-                dateStr = currentDate.strftime("%Y_%m_%d")
-                print(dateStr, "   WHC: ", currentWHC, "   SWC0:", round(swc0, 2))
-                if swc0 <= 0:
-                    swc = -currentWHC
-                    for j in range(indexPreviousPrec):
-                        if previousPrec[j] != NODATA:
-                            swc, waterLevel = getWaterLevel(swc, previousPrec[j], currentWHC, currentDate, timeStep)
+        # new value of WHC: update current swc using previous precipitation
+        if not pd.isna(df.WHC[i]):
+            currentWHC = df.WHC[i]
+            dateStr = currentDate.strftime("%Y_%m_%d")
+            print(dateStr, "   WHC: ", currentWHC, "   SWC0:", round(swc0, 2))
+            if swc0 <= 0:
+                swc = -currentWHC
+                for j in range(indexPreviousPrec):
+                    if previousPrec[j] != NODATA:
+                        swc, waterLevel = computeWaterLevel(swc, previousPrec[j], currentWHC,
+                                                            currentDate, timeStep)
 
-            # compute current soil water content and water level
-            swc, waterLevel = getWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
-            estLevel[i] = waterLevel
+        # compute current surface water content and water level
+        swc, waterLevel = computeWaterLevel(swc, precipitation[i], currentWHC, currentDate, timeStep)
+        estLevel[i] = waterLevel
 
-            # save previous precipitation
-            previousPrec[indexPreviousPrec] = precipitation[i]
-            indexPreviousPrec += 1
+        # save previous precipitation
+        previousPrec[indexPreviousPrec] = precipitation[i]
+        indexPreviousPrec += 1
 
-        # clean dataset
-        df['estLevel'] = estLevel
-        df_clean = df[df['Livello'].notna()]
+    # clean dataset
+    df['estLevel'] = estLevel
+    df_clean = df[df['Livello'].notna()]
 
-        # estimation vector
-        df_est = df_clean[['estLevel']]
+    # estimation vector
+    df_est = df_clean[['estLevel']]
 
-        # observed vector
-        df_obs = df_clean[['Livello']]
+    # observed vector
+    df_obs = df_clean[['Livello']]
 
-        df_visu = df_est.join(df_obs, how='outer').dropna()
+    df_visu = df_est.join(df_obs, how='outer').dropna()
+    xo = df_visu.index
+    yo = df_visu.Livello
+    ye = df_visu.estLevel
 
-        xo = df_visu.index
-        yo = df_visu.Livello
-        ye = df_visu.estLevel
-
-        # plot
-        plt.figure(figsize=(10, 5))
-        plt.subplots_adjust(bottom=0.2)
-        plt.xticks(rotation=75)
-        ax = plt.gca()
-        xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
-        ax.xaxis.set_major_formatter(xfmt)
-        ax.set_ylim([0.0, 2.0])
-        ax.grid(linestyle=':')
-        ax.plot(xo, yo, 'r.', label='Observed')
-        ax.plot(xo, ye, label='Estimated')
-        ax.set_ylabel('water level [m]')
-        plt.legend()
-        plt.savefig(outputPath + "Prev_" + dateStr + ".png", bbox_inches='tight', dpi=300)
+    # plot
+    plt.figure(figsize=(10, 5))
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=75)
+    ax = plt.gca()
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
+    ax.xaxis.set_major_formatter(xfmt)
+    ax.set_ylim([0.0, 2.0])
+    ax.grid(linestyle=':')
+    ax.plot(xo, yo, 'r.', label='Observed')
+    ax.plot(xo, ye, label='Estimated')
+    ax.set_ylabel('water level [m]')
+    plt.legend()
+    plt.savefig(outputPath + "Prev_" + dateStr + ".png", bbox_inches='tight', dpi=300)
 
 
 main()
