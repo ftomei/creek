@@ -14,6 +14,15 @@ def getBasinParameters():
     x0 = 20             # swc value to be associated with a particolar observed level (in this case L=1.25 m, obtained true confrontation with data)
     return zeroIdro, hMax, m, k, x0
 
+# Qauderna basin
+def getBasinParametersQuaderna():
+    zeroIdro = 0.0     # [m] minimum water level
+    hMax = 3.0          # [m] maximum water level
+    m = 2.1             # factor controlling base level (decreasing, increase level)
+    k = 0.11            # factor controlling signal response (higher, increase level)
+    x0 = 20             # swc value to be associated with a particolar observed level (in this case L=1.25 m, obtained true confrontation with data)
+    return zeroIdro, hMax, m, k, x0
+
 
 # Water infiltration in deep soil layer [mm/hour]
 # deficit90: current water deficit in 90 cm of soil
@@ -48,6 +57,7 @@ def estimateLevel(swc, maxLevel, m, k, zeroIdro, x0):
 # Main function transforming inflows in outflows
 def computeWaterLevel(currentDate, timeStep, rainfall, currentSwc, currentDeficit90, currentLeafIntercepted):
     zeroIdro, maxLevel, m, k, x0 = getBasinParameters()
+    #zeroIdro, maxLevel, m, k, x0 = getBasinParametersQuaderna()
     alpha = 0.18  # runoff decay factor, % of runoff that leaves the system in one hour
     nrIntervals = 3600 / timeStep
 
@@ -74,7 +84,7 @@ def computeWaterLevel(currentDate, timeStep, rainfall, currentSwc, currentDefici
         newDeficit90 = currentDeficit90 - currentDeepInfiltration
 
     if newSwc > 0:
-        waterLevel = estimateLevel(newSwc, maxLevel, m, k, zeroIdro, x0)
+        waterLevel = estimateLevel(newSwc, maxLevel, m, k, zeroIdro, x0)    # [m]
     else:
         waterLevel = zeroIdro
 

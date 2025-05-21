@@ -53,21 +53,30 @@ def main():
     inputPath = ".\\INPUT\\"
     outputPath = ".\\OUTPUT\\"
 
-    fileName = inputPath + "Test_2023-05-01.csv"
-    #fileName = inputPath + "Test_2015-03-25.csv"
+    fileName = "Ravone_2023-05-01.csv"
+    #fileName = "Ravone_2015-03-25.csv"
+    #fileName = "Quaderna_2023_05_01.csv"
 
-    df = pd.read_csv(fileName)
+    fullFileName = inputPath + fileName
+
+    df = pd.read_csv(fullFileName)
     df.index = pd.to_datetime(df['Dataf'])
 
     currentDate = df.index[0]
     dateStr = currentDate.strftime("%Y_%m_%d")
 
-    # swc: deficit con segno invertito
-    swc35 = [-34, -4, +14]      # dati di maggio 23
+    # swc35: deficit35 con segno invertito
+    swc35 = [-34, -4, +14]          # dati di 01-03 maggio 2023 Ravone
     deficit90 = [84, 51, -10]
 
-    #swc35 = [-1]                 # dati di marzo 2015
+    #swc35 = [-1]                   # dati di marzo 2015 Ravone
     #deficit90 = [-11]
+    
+    #swc35 = [-23.2, 1.0, 13.6]     # dati 01-03 maggio 23 Quaderna suolo OSP
+    #deficit90 = [50.04, 26.47, 14.02]
+
+    #swc35 = [-21.1, 11.4, 27.8]    # dati 01-03 maggio 23 Quaderna suolo MGG
+    #deficit90 = [47.4, 15.5, -4.1]
 
     df = creek(df, 'P15', swc35, deficit90)
 
@@ -89,13 +98,13 @@ def main():
     ax = plt.gca()
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
     ax.xaxis.set_major_formatter(xfmt)
-    ax.set_ylim([0.0, 2.0])
+    ax.set_ylim([0.0, 3.0])
     ax.grid(linestyle=':')
     ax.plot(xo, yo, 'r.', label='Observed')
     ax.plot(xo, ye, label='Estimated')
     ax.set_ylabel('water level [m]')
     plt.legend()
-    plt.savefig(outputPath + "Test_" + dateStr + ".png", bbox_inches='tight', dpi=300)
+    plt.savefig(outputPath + fileName[:6] + "_" + dateStr + ".png", bbox_inches='tight', dpi=300)
 
 
 main()
