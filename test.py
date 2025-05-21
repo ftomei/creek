@@ -71,7 +71,7 @@ def main():
 
     #swc35 = [-1]                   # dati di marzo 2015 Ravone
     #deficit90 = [-11]
-    
+
     #swc35 = [-23.2, 1.0, 13.6]     # dati 01-03 maggio 23 Quaderna suolo OSP
     #deficit90 = [50.04, 26.47, 14.02]
 
@@ -104,7 +104,10 @@ def main():
     ax.plot(xo, ye, label='Estimated')
     ax.set_ylabel('water level [m]')
     plt.legend()
-    plt.savefig(outputPath + fileName[:6] + "_" + dateStr + ".png", bbox_inches='tight', dpi=300)
 
+    outputFileName = outputPath + fileName[:6] + "_" + dateStr + ".png"
+    plt.savefig(outputFileName, bbox_inches='tight', dpi=300)
+
+    print("Output file: ", outputFileName)
 
 main()
