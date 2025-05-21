@@ -64,7 +64,7 @@ def initializeArray(myArray):
 def main():
     inputPath = ".\\INPUT\\"
     outputPath = ".\\OUTPUT\\"
-    fileName = inputPath + "Forecast_2023_05_10_x2.csv"
+    fileName = inputPath + "icon_2I_Paderno_20240226.csv"
 
     df = pd.read_csv(fileName)
     df.index = pd.to_datetime(df['Datetime'])

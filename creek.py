@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as md
 
 NODATA = -9999
-
+infiltrationSum = 0
 
 # hourly soil infiltration [mm/hour]
 def getSoilInfiltration(WHC, currentDate):
@@ -14,9 +14,9 @@ def getSoilInfiltration(WHC, currentDate):
         return 5.0
     else:
         # test for may 2023
-        #if currentDate.day == 1 or (currentDate.day == 2 and currentDate.hour < 16):
-        #    return 3.8
-        #else:
+        if currentDate.day == 1 or (currentDate.day == 2 and currentDate.hour < 16):
+            return 3.8
+        else:
             # saturated soil conductivity
             return 1.5
 
@@ -34,26 +34,30 @@ def getCropInterception(currentDate):
 # WHC [mm] = water holding capacity at the start of the day
 # prec [mm] = precipitation during the timeStep [s]
 def computeWaterLevel(swc, prec, WHC, currentDate, timeStep):
+    global infiltrationSum
     nrIntervals = int(3600 / timeStep)
-
-    # [-] runoff decay factor
-    alpha = 0.18 / nrIntervals
 
     interception = getCropInterception(currentDate) / nrIntervals
     infiltration = getSoilInfiltration(WHC, currentDate) / nrIntervals
 
     if swc < 0:
         # phase 1: soil saturation
-        swc += max(prec - interception, 0)
+        swc += prec
+        infiltrationSum += prec
         if swc > 0:
             waterLevel = 3.8 / (1 + 20 * np.exp(-0.15 * swc)) - 0.15
         else:
             waterLevel = 0
     else:
         # phase 2: runoff
+        # [-] runoff decay factor
+        alpha = 0.18 / nrIntervals
         w0 = swc * (1 - alpha)
+
         waterInput = max(prec - interception, 0)
         swc = max(w0 + waterInput - infiltration, 0)
+        infiltrationSum += (w0 + waterInput - swc)
+
         waterLevel = 3.8 / (1 + 20 * np.exp(-0.15 * swc)) - 0.15
 
     return swc, waterLevel
@@ -110,7 +114,7 @@ def main():
         if not pd.isna(df.WHC[i]):
             currentWHC = df.WHC[i]
             dateStr = currentDate.strftime("%Y_%m_%d")
-            print(dateStr, "   WHC: ", currentWHC, "   SWC0:", round(swc0, 2))
+            print(dateStr, "   WHC: ", -currentWHC, "   SWC0:", round(swc0, 2))
             if currentWHC > 0:
                 swc = -currentWHC
                 for j in range(indexPreviousPrec):
@@ -126,6 +130,7 @@ def main():
         previousPrec[indexPreviousPrec] = precipitation[i]
         indexPreviousPrec += 1
 
+    print(" Infiltration sum: ", infiltrationSum)
     # clean dataset
     df['estLevel'] = estLevel
     df_clean = df[df['Livello'].notna()]
