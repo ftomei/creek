@@ -1,32 +1,37 @@
-# Package containing all functions and main of Criteria-Rainbo model
-# March 2025 F.Grazzini, F. Tomei
+# functions of Criteria-Rainbo model
+# June 2025 F.Grazzini, F.Tomei
 
 import numpy as np
 
+RAVONE = 1
+QUADERNA = 2
+
 
 # Parameters of the sigmoid function found by fitting with observations
-# Ravone basin fit on march 2025 with test_logistic_Rainbo.ipynb
-def getBasinParameters():
-    zeroIdro = -0.2     # [m] minimum water level
-    hMax = 4.5          # [m] maximum water level
-    m = 2.1             # factor controlling base level (decreasing, increase level)
-    k = 0.11            # factor controlling signal response (higher, increase level)
-    x0 = 20             # swc value to be associated with a particolar observed level (in this case L=1.25 m, obtained true confrontation with data)
-    return zeroIdro, hMax, m, k, x0
+# Ravone basin
+def getBasinParameters_Ravone():
+    zeroIdro = -0.2         # [m] minimum water level
+    hMax = 4.5              # [m] maximum water level
+    k = 0.10                # factor controlling signal response (higher, increase level)
+    referenceLevel = 1.25   # [m]
+    swc0 = 22               # [mm] swc value to be associated with the reference Level
+    m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
+    return zeroIdro, hMax, m, k, swc0
 
-# Qauderna basin
-def getBasinParametersQuaderna():
-    zeroIdro = 0.0     # [m] minimum water level
-    hMax = 3.0          # [m] maximum water level
-    m = 2.1             # factor controlling base level (decreasing, increase level)
-    k = 0.11            # factor controlling signal response (higher, increase level)
-    x0 = 20             # swc value to be associated with a particolar observed level (in this case L=1.25 m, obtained true confrontation with data)
-    return zeroIdro, hMax, m, k, x0
+# Quaderna basin
+def getBasinParameters_Quaderna():
+    zeroIdro = 0.0          # [m] minimum water level
+    hMax = 2.6              # [m] maximum water level
+    k = 0.094               # factor controlling signal response (higher, increase level)
+    referenceLevel = 1.3    # [m]
+    swc0 = 19.4             # [mm] swc value to be associated with the reference level
+    m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
+    return zeroIdro, hMax, m, k, swc0
 
 
 # Water infiltration in deep soil layer [mm/hour]
 # deficit90: current water deficit in 90 cm of soil
-def getSoilInfiltrationNew(deficit90):
+def getSoilInfiltration(deficit90):
     infMax = 10.0       # mm/hour representative of very dry soil with cracks
     infMin = 0.5        # mm/hour representative of saturated soil
     deficit90max = 100
@@ -44,20 +49,18 @@ def getSoilInfiltrationNew(deficit90):
 # Vegetation maximum water storage [mm]
 def maxCropInterception(currentDate):
     # {month:val} maximum water storage vegetation [mm]
-    vegetationStorage = {1: 2, 2: 2, 3: 3, 4: 5, 5: 6, 6: 8, 7: 10, 8: 9, 9: 7, 10: 6, 11: 5, 12: 3}
+    vegetationStorage = {1: 2, 2: 2, 3: 3, 4: 5, 5: 6, 6: 7, 7: 8, 8: 7, 9: 7, 10: 5, 11: 4, 12: 3}
     return vegetationStorage[currentDate.month]
 
 
 # Compute water level [m] from surface water content (swc) with basin specific parameters
-def estimateLevel(swc, maxLevel, m, k, zeroIdro, x0):
-    waterLevel = maxLevel / (1 + m * np.exp(-k * (swc - x0))) + zeroIdro
+def estimateLevel(swc, hMax, m, k, zeroIdro, swc0):
+    waterLevel = hMax / (1 + m * np.exp(-k * (swc - swc0))) + zeroIdro
     return waterLevel
 
 
 # Main function transforming inflows in outflows
-def computeWaterLevel(currentDate, timeStep, rainfall, currentSwc, currentDeficit90, currentLeafIntercepted):
-    zeroIdro, maxLevel, m, k, x0 = getBasinParameters()
-    #zeroIdro, maxLevel, m, k, x0 = getBasinParametersQuaderna()
+def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, currentDeficit90, currentLeafIntercepted):
     alpha = 0.18  # runoff decay factor, % of runoff that leaves the system in one hour
     nrIntervals = 3600 / timeStep
 
@@ -69,7 +72,7 @@ def computeWaterLevel(currentDate, timeStep, rainfall, currentSwc, currentDefici
     # rain reaching the soil [mm]
     rainReachingSoil = rainfall - currentLeafInterception
     # maximum amount of water that can infiltrate into deep soil [mm]
-    maxDeepInfiltration = getSoilInfiltrationNew(currentDeficit90) / nrIntervals
+    maxDeepInfiltration = getSoilInfiltration(currentDeficit90) / nrIntervals
     # current deep infiltration [mm]
     currentDeepInfiltration = min(rainReachingSoil, maxDeepInfiltration)
 
@@ -83,15 +86,17 @@ def computeWaterLevel(currentDate, timeStep, rainfall, currentSwc, currentDefici
         newSwc = max(currentSwc + rainReachingSoil - runoff - currentDeepInfiltration, 0)
         newDeficit90 = currentDeficit90 - currentDeepInfiltration
 
-    if newSwc > 0:
-        waterLevel = estimateLevel(newSwc, maxLevel, m, k, zeroIdro, x0)    # [m]
+    # basin parameters
+    if basin == RAVONE:
+        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
+    elif basin == QUADERNA:
+        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Quaderna()
     else:
-        waterLevel = zeroIdro
+        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
+
+    if newSwc > 0:
+        waterLevel = estimateLevel(newSwc, hMax, m, k, zeroIdro, swc0)      # [m]
+    else:
+        waterLevel = zeroIdro                                               # [m]
 
     return waterLevel, newSwc, newDeficit90, newLeafIntercepted
-
-
-# scala di deflusso Michele Di Lorenzo Giugno 2023, aggiustato fondo -0.20 dopo alluvione ottobre 2024
-def computeDischarge(myLevel):
-    return 3.5 * (myLevel + 0.20) ** 1.8
-
