@@ -20,7 +20,7 @@ def getBasinParameters_Ravone():
 
 # Quaderna basin
 def getBasinParameters_Quaderna():
-    zeroIdro = 0.0          # [m] minimum water level
+    zeroIdro = 0.1          # [m] minimum water level
     hMax = 2.6              # [m] maximum water level
     k = 0.094               # factor controlling signal response (higher, increase level)
     referenceLevel = 1.3    # [m]
@@ -31,9 +31,13 @@ def getBasinParameters_Quaderna():
 
 # Water infiltration in deep soil layer [mm/hour]
 # deficit90: current water deficit in 90 cm of soil
-def getSoilInfiltration(deficit90):
-    infMax = 10.0       # mm/hour representative of very dry soil with cracks
-    infMin = 0.5        # mm/hour representative of saturated soil
+def getSoilInfiltration(basin, deficit90):
+    if basin == QUADERNA:
+        infMax = 4.0        # mm/hour representative of very dry soil
+        infMin = 0.5        # mm/hour representative of saturated soil
+    else:
+        infMax = 10.0       # mm/hour representative of very dry soil
+        infMin = 0.5        # mm/hour representative of saturated soil
     deficit90max = 100
     deficit90min = -50
     if deficit90 > deficit90max:
@@ -61,7 +65,7 @@ def estimateLevel(swc, hMax, m, k, zeroIdro, swc0):
 
 # Main function transforming inflows in outflows
 def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, currentDeficit90, currentLeafIntercepted):
-    alpha = 0.18  # runoff decay factor, % of runoff that leaves the system in one hour
+    alpha = 0.18     # runoff decay factor, % of runoff that leaves the system in one hour
     nrIntervals = 3600 / timeStep
 
     # [mm] seasonal max crop interception 
@@ -72,7 +76,7 @@ def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, curren
     # rain reaching the soil [mm]
     rainReachingSoil = rainfall - currentLeafInterception
     # maximum amount of water that can infiltrate into deep soil [mm]
-    maxDeepInfiltration = getSoilInfiltration(currentDeficit90) / nrIntervals
+    maxDeepInfiltration = getSoilInfiltration(basin, currentDeficit90) / nrIntervals
     # current deep infiltration [mm]
     currentDeepInfiltration = min(rainReachingSoil, maxDeepInfiltration)
 
