@@ -33,7 +33,7 @@ def getBasinParameters_Quaderna():
 # deficit90: current water deficit in 90 cm of soil
 def getSoilInfiltration(basin, deficit90):
     if basin == QUADERNA:
-        infMax = 4.0        # mm/hour representative of very dry soil
+        infMax = 3.0        # mm/hour representative of very dry soil
         infMin = 0.5        # mm/hour representative of saturated soil
     else:
         infMax = 10.0       # mm/hour representative of very dry soil

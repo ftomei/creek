@@ -48,22 +48,23 @@ def creek(basin, df, precFieldName, swc35, deficit90):
 
 
 def main():
-    basin = RAVONE
+    basin = QUADERNA
 
     if basin == QUADERNA:
         inputPath = ".\\INPUT\\QUADERNA\\"
         outputPath = ".\\OUTPUT\\QUADERNA\\"
 
         precipitationField = "P30"
-        #fileName = "Quaderna_2023_05_01.csv"
-        fileName = "Quaderna_2015_03_25.csv"
+        fileName = "Quaderna_2023_05_01.csv"
+        #fileName = "Quaderna_2023_05_16.csv"
+        #fileName = "Quaderna_2023_05_16_radar_corrected.csv"
 
         # swc35: deficit35 con segno invertito
         swc35 = [-21.1, 11.4, 27.8]             # dati 01-03 maggio 23 Quaderna
         deficit90 = [47.4, 15.5, -4.1]
 
-        swc35 = [10.95, 31.26]            # dati 24 25 marzo 15 Quaderna suolo MGG
-        deficit90 = [-33.96, -58.71]
+        #swc35 = [20.1, 31.31]                   # dati 16 17 maggio 23 Quaderna suolo MGG
+        #deficit90 = [-34.21, -49.82]
 
     else:
         inputPath = ".\\INPUT\\RAVONE\\"
