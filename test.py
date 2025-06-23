@@ -19,7 +19,7 @@ def creek(basin, df, precFieldName, swc35, deficit90):
 
     # [mm] current water storages (swc: surface and first soil layer)
     index_swc = 0
-    currentSWC = max(swc35[index_swc], 0)
+    currentSWC = min(swc35[index_swc], 0)
     currentDeficit90 = deficit90[index_swc]
     LeafIntercepted = 0     # TODO transition
 
@@ -30,7 +30,11 @@ def creek(basin, df, precFieldName, swc35, deficit90):
         if currentDate.date() != previousDate.date():
             index_swc += 1
             if index_swc <= len(swc35) - 1:
-                currentSWC = (swc35[index_swc] + currentSWC) * 0.5
+                if swc35[index_swc] < 0.:
+                    currentSWC = swc35[index_swc]
+                else:
+                    if currentSWC < 0.:
+                        currentSWC = (swc35[index_swc] + currentSWC) * 0.5
                 currentDeficit90 = deficit90[index_swc]
             previousDate = currentDate
 
@@ -46,18 +50,22 @@ def creek(basin, df, precFieldName, swc35, deficit90):
 
 
 def main():
-    basin = QUADERNA
+    basin = RAVONE
 
     if basin == QUADERNA:
         inputPath = ".\\INPUT\\QUADERNA\\"
         outputPath = ".\\OUTPUT\\QUADERNA\\"
 
         precipitationField = "P30"
-        fileName = "Quaderna_2023_05_01.csv"
+        #fileName = "Quaderna_2023_05_01.csv"
+        fileName = "Quaderna_2015_03_25.csv"
 
         # swc35: deficit35 con segno invertito
         swc35 = [-21.1, 11.4, 27.8]         # dati 01-03 maggio 23 Quaderna (suolo MGG)
         deficit90 = [47.4, 15.5, -4.1]
+
+        swc35 = [10.95, 31.26]            # dati 24 25 marzo 15 Quaderna suolo MGG
+        deficit90 = [-33.96, -58.71]
 
     else:
         inputPath = ".\\INPUT\\RAVONE\\"
