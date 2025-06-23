@@ -18,9 +18,9 @@ def creek(basin, df, precFieldName, swc35, deficit90):
     timeStep = (df.index[1] - df.index[0]).total_seconds()
 
     # [mm] current water storages (swc: surface and first soil layer)
-    index_swc = 0
-    currentSWC = min(swc35[index_swc], 0)
-    currentDeficit90 = deficit90[index_swc]
+    index = 0
+    currentSWC = min(swc35[index], 0)
+    currentDeficit90 = deficit90[index]
     LeafIntercepted = 0     # TODO transition
 
     # main cycle
@@ -28,14 +28,12 @@ def creek(basin, df, precFieldName, swc35, deficit90):
     for i in range(nrData):
         currentDate = df.index[i]
         if currentDate.date() != previousDate.date():
-            index_swc += 1
-            if index_swc <= len(swc35) - 1:
-                if swc35[index_swc] < 0.:
-                    currentSWC = swc35[index_swc]
-                else:
-                    if currentSWC < 0.:
-                        currentSWC = (swc35[index_swc] + currentSWC) * 0.5
-                currentDeficit90 = deficit90[index_swc]
+            index += 1
+            if index < len(deficit90):
+                currentDeficit90 = deficit90[index]
+            if index < len(swc35):
+                if currentSWC < 0:
+                    currentSWC = min(swc35[index], 0)
             previousDate = currentDate
 
         # compute current surface water content and water level
@@ -61,7 +59,7 @@ def main():
         fileName = "Quaderna_2015_03_25.csv"
 
         # swc35: deficit35 con segno invertito
-        swc35 = [-21.1, 11.4, 27.8]         # dati 01-03 maggio 23 Quaderna (suolo MGG)
+        swc35 = [-21.1, 11.4, 27.8]             # dati 01-03 maggio 23 Quaderna
         deficit90 = [47.4, 15.5, -4.1]
 
         swc35 = [10.95, 31.26]            # dati 24 25 marzo 15 Quaderna suolo MGG
@@ -106,7 +104,7 @@ def main():
     ax = plt.gca()
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
     ax.xaxis.set_major_formatter(xfmt)
-    ax.set_ylim([0.0, 2.5])
+    ax.set_ylim([0.0, 3.0])
     ax.grid(linestyle=':')
     ax.plot(xo, yo, 'r.', label='Observed')
     ax.plot(xo, ye, label='Estimated')
