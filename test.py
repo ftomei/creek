@@ -63,7 +63,7 @@ def main():
         swc35 = [-21.1, 11.4, 27.8]             # dati 01-03 maggio 23 Quaderna
         deficit90 = [47.4, 15.5, -4.1]
 
-        #swc35 = [20.1, 31.31]                   # dati 16 17 maggio 23 Quaderna suolo MGG
+        #swc35 = [20.1, 31.31]                   # dati 16 17 maggio 23 Quaderna
         #deficit90 = [-34.21, -49.82]
 
     else:
