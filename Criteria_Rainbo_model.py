@@ -21,8 +21,8 @@ def getBasinParameters_Ravone():
 # Quaderna basin
 def getBasinParameters_Quaderna():
     zeroIdro = 0.1          # [m] minimum water level
-    hMax = 2.6              # [m] maximum water level
-    k = 0.094               # factor controlling signal response (higher, increase level)
+    hMax = 2.5              # [m] maximum water level
+    k = 0.10                # factor controlling signal response (higher, increase level)
     referenceLevel = 1.3    # [m]
     swc0 = 19.4             # [mm] swc value to be associated with the reference level
     m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
@@ -33,8 +33,8 @@ def getBasinParameters_Quaderna():
 # deficit90: current water deficit in 90 cm of soil
 def getSoilInfiltration(basin, deficit90):
     if basin == QUADERNA:
-        infMax = 3.0        # mm/hour representative of very dry soil
-        infMin = 0.5        # mm/hour representative of saturated soil
+        infMax = 2.0        # mm/hour representative of very dry soil
+        infMin = 0.2        # mm/hour representative of saturated soil
     else:
         infMax = 10.0       # mm/hour representative of very dry soil
         infMin = 0.5        # mm/hour representative of saturated soil
