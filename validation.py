@@ -1,4 +1,6 @@
-# Creek computing one obs precipitation step at time (like in real time). May 2022, Rivisited March 2024, -> Criteria-Rainbo  
+# Creek computing one step at time (like in real time).
+# May 2022, Revisited March 2024, -> Criteria-Rainbo
+# update July 2025
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
