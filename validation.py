@@ -149,7 +149,7 @@ for fileName in all_files:
         r_shift = np.nan
     else:
         # shift estimated data
-        if mPeak_anti > 0:
+        if mPeak_anti >= 0:
             shiftNr = round(mPeak_anti * nrIntervals)
         else:
             shiftNr = round(shift_default * nrIntervals)
