@@ -23,8 +23,8 @@ def getBasinParameters_Quaderna():
     zeroIdro = 0.1          # [m] minimum water level
     hMax = 2.6              # [m] maximum water level
     k = 0.10                # factor controlling signal response (higher, increase level)
-    referenceLevel = 1.3    # [m]
-    swc0 = 19.4             # [mm] swc value to be associated with the reference level
+    referenceLevel = 1.25    # [m]
+    swc0 = 16              # [mm] swc value to be associated with the reference level
     m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
     return zeroIdro, hMax, m, k, swc0
 
