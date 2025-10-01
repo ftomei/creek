@@ -1,5 +1,6 @@
 # functions of Criteria-Rainbo model
 # June 2025 F.Grazzini, F.Tomei
+# prova 
 
 import numpy as np
 
@@ -36,10 +37,10 @@ def getSoilInfiltration(basin, deficit90):
         infMax = 2.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
     else:
-        infMax = 10.0       # mm/hour representative of very dry soil
-        infMin = 0.5        # mm/hour representative of saturated soil
+        infMax = 6.0       # mm/hour representative of very dry soil
+        infMin = 0.2        # mm/hour representative of saturated soil
     deficit90max = 100
-    deficit90min = -50
+    deficit90min = -40
     if deficit90 > deficit90max:
         currentInf = infMax
     elif deficit90 < deficit90min:

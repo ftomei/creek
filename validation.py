@@ -11,6 +11,8 @@ from scipy.stats import pearsonr
 from scipy.signal import find_peaks
 import glob
 from datetime import datetime, timedelta
+import sys
+sys.path.append("../")                      # cerca i moduli anche nella dir sopra
 from Criteria_Rainbo_model import *
 
 
@@ -68,14 +70,24 @@ peak_hmin = 0.2  # [m] hmin for peak search
 peak_prominence = 0.1  # [m] minimum peak prominence
 peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
-inputPath = "./INPUT/QUADERNA/"
-outputPath = "./OUTPUT/QUADERNA/"
-criteriaOutputFileName = "./INPUT/QUADERNA/CriteriaOutput/Quaderna.csv"
 basin = QUADERNA
-shift_default = 1.5         # hours
+
+if basin == QUADERNA:
+    inputPath = "./INPUT/QUADERNA/"
+    outputPath = "./OUTPUT/QUADERNA/"
+    criteriaOutputFileName = inputPath + "CriteriaOutput/Quaderna.csv"
+    shift_default = 1.5         # hours
+    all_files = glob.glob(inputPath + "Quaderna_*.csv")
+    precName = 'P30'
+elif basin == RAVONE:
+    inputPath = "./INPUT/RAVONE/"
+    outputPath = "./OUTPUT/RAVONE/"
+    criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
+    shift_default = 0.5         # hours
+    all_files = glob.glob(inputPath + "Test_*.csv")
+    precName = 'P15'
     
 # insert complete filename to read a single test case or wildcard for all cases
-all_files = glob.glob(inputPath + "Quaderna_*.csv")
 df_daily = pd.read_csv(criteriaOutputFileName)
 df_daily.index = pd.to_datetime(df_daily['DATE'])
 
@@ -96,8 +108,6 @@ for fileName in all_files:
     # [mm] water holding capacity from daily preprocessed data
     deficit35 = max(df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_35.values[0],0) #WHC = df.WHC[0]
     deficit90 = df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_90.values[0] 
-    
-    precName = 'P30'
  
     # Run Criteria-Rainbo model with df_in in input and wch35/whc90
     df = creek(basin, df_in, precName, deficit35, deficit90)
@@ -160,7 +170,7 @@ for fileName in all_files:
         r = round(r, 3)
         r_shift = round(r_shift, 3)
 
-        RMSE = np.sqrt(((vest_shift - vobs) ** 2).mean())
+        RMSE = np.sqrt(((vest - vobs) ** 2).mean())
         RMSE = round(RMSE, 3)
 
         string_ini = date0.strftime("%d-%m-%Y")
@@ -199,5 +209,5 @@ for fileName in all_files:
     df.to_csv(outputPath + "Data_" + string_ini + ".csv", columns=[precName,'WHC90','swc','estLevel','Livello'])
 
 df_out = pd.DataFrame(list_scores, columns=["date", "DEFICIT35", "R", "R_SHIFT", "RMSE", "mP_error", "mP_ant"])
-df_out.to_csv(outputPath + "Quaderna_stat_tests.csv")  # salva su csv
+df_out.to_csv(outputPath + "stat_tests.csv")  # salva su csv
 print(df_out.describe())
