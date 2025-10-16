@@ -25,46 +25,6 @@ def nearest_date(items, pivot):
     return -1
 
 
-# main looping over precipitation a calling other functions
-def creek(basin, df, precFieldName, deficit35, deficit90):
-    # [mm] precipitation
-    precipitation = df[precFieldName]
-
-    # [m] estimated Level vector
-    nrData = len(precipitation)
-    estLevel = np.zeros(nrData)
-    swcout = np.zeros(nrData)
-    whc90out = np.zeros(nrData)
-
-    # initialize with first value
-    currentDate = df.index[0]
-    timeStep = (df.index[1] - df.index[0]).total_seconds()
-    dateStr = currentDate.strftime("%Y_%m_%d")
-
-    # [mm] current water storages (swc: surface and first soil layer)
-    swc = min(-deficit35, 0)
-    currentWHC90 = deficit90
-    LeafIntercepted = 0
-
-    # main cycle
-    for j in range(nrData):
-        currentDate = df.index[j]
-
-        # compute current surface water content and water level
-        waterLevel, swc, currentWHC90, LeafIntercepted = computeWaterLevel(basin, currentDate, timeStep, precipitation[j], swc,
-                                                                           currentWHC90, LeafIntercepted)
-        estLevel[j] = waterLevel
-        swcout[j] = swc
-        whc90out[j] = currentWHC90
-
-    # estimated datasets
-    df['estLevel'] = estLevel
-    df['swc'] = swcout
-    df['WHC90'] = whc90out
-
-    return df
-
-
 # parameters for peaks recognitions
 peak_hmin = 0.2  # [m] hmin for peak search
 peak_prominence = 0.1  # [m] minimum peak prominence

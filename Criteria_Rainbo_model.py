@@ -22,7 +22,7 @@ def getBasinParameters_Ravone():
 # Quaderna basin
 def getBasinParameters_Quaderna():
     zeroIdro = 0.1          # [m] minimum water level
-    hMax = 2.6              # [m] maximum water level
+    hMax = 2.5              # [m] maximum water level
     k = 0.10                # factor controlling signal response (higher, increase level)
     referenceLevel = 1.25    # [m]
     swc0 = 16              # [mm] swc value to be associated with the reference level
@@ -37,7 +37,7 @@ def getSoilInfiltration(basin, deficit90):
         infMax = 2.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
     else:
-        infMax = 6.0       # mm/hour representative of very dry soil
+        infMax = 6.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
     deficit90max = 100
     deficit90min = -40
@@ -105,3 +105,46 @@ def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, curren
         waterLevel = zeroIdro                                               # [m]
 
     return waterLevel, newSwc, newDeficit90, newLeafIntercepted
+
+
+# main looping over precipitation a calling other functions
+def creek(basin, df_in, precFieldName, deficit35, deficit90):
+    # initialize
+    df_out = df_in
+
+    # [mm] precipitation
+    precipitation = df_in[precFieldName]
+
+    # [m] estimated Level vector
+    nrData = len(precipitation)
+    estLevel = np.zeros(nrData)
+    swcout = np.zeros(nrData)
+    whc90out = np.zeros(nrData)
+
+    # initialize with first value
+    currentDate = df_in.index[0]
+    timeStep = (df_in.index[1] - df_in.index[0]).total_seconds()
+    dateStr = currentDate.strftime("%Y_%m_%d")
+
+    # [mm] current water storages (swc: surface and first soil layer)
+    swc = min(-deficit35, 0)
+    currentWHC90 = deficit90
+    LeafIntercepted = 0
+
+    # main cycle
+    for j in range(nrData):
+        currentDate = df_in.index[j]
+
+        # compute current surface water content and water level
+        waterLevel, swc, currentWHC90, LeafIntercepted = computeWaterLevel(basin, currentDate, timeStep, precipitation[j], swc,
+                                                                           currentWHC90, LeafIntercepted)
+        estLevel[j] = waterLevel
+        swcout[j] = swc
+        whc90out[j] = currentWHC90
+
+    # estimated datasets
+    df_out['estLevel'] = estLevel
+    df_out['swc'] = swcout
+    df_out['WHC90'] = whc90out
+
+    return df_out
