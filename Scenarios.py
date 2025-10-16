@@ -78,8 +78,8 @@ sns.barplot(data=df_out, x=df_out.index.strftime("%d/%m %H:%M"),
 axp.set_ylabel('Rainfall [mm]')
 
 # generate sensitivy changing values of WHC
-whc90 = [0, 50, 100, 150]
-colors = ['red', 'orange', 'green', 'darkgreen']
+whc90 = [0, 50, 100, 150, 200]
+colors = ['red', 'orange', 'lightgreen', 'green', 'pink']
 for i in range(len(whc90)):
     whc35 = whc90[i] * 0.4
     df_out = rainbo.creek(basin, df_in, precName, whc35, whc90[i])
@@ -91,16 +91,16 @@ ax.axhline(alarmLevels[1], linestyle='dashed', color='orange', label='prealarm')
 ax.axhline(alarmLevels[2], linestyle='dashed', color='red', label='alarm')
 
 # x axis
-ax.xaxis.set_major_locator(MultipleLocator(4))
+ax.xaxis.set_major_locator(MultipleLocator(6))
 ax.xaxis.set_minor_locator(MultipleLocator(1))
 #ax.grid(linestyle=':')
 ax.set(xlabel=None)
 
 # title
-plt.title('Sensitivity soil state ' + " " + df_in.index[0].strftime("%d/%m/%Y") + " - Deficit (90cm) = " + str(deficit90))
+firstDate = date0.strftime("%Y-%m-%d")
+plt.title('Sensitivity soil state ' + " " + firstDate + " - Deficit (90cm) = " + str(deficit90))
 sns.move_legend(ax, "upper left")
 
-firstDate = date0.strftime("%Y-%m-%d")
 outputFileName = outputPath + "Scenarios_" + firstDate + ".png"
 plt.savefig(outputFileName, bbox_inches='tight', dpi=100)
 
