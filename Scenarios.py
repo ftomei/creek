@@ -13,7 +13,7 @@ NODATA = -9999
 # select case
 basin = rainbo.QUADERNA
 #fileName = 'Test_2024-10-19.csv'   # Ravone
-fileName = 'Quaderna_2023_05_01.csv'
+fileName = 'Quaderna_2024_09_17.csv'
 timeName = 'Dataf'
 
 if basin == rainbo.RAVONE:

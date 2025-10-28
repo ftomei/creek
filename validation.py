@@ -130,7 +130,7 @@ for fileName in all_files:
         r = round(r, 3)
         r_shift = round(r_shift, 3)
 
-        RMSE = np.sqrt(((vest - vobs) ** 2).mean())
+        RMSE = np.sqrt(((vest_shift - vobs) ** 2).mean())
         RMSE = round(RMSE, 3)
 
         string_ini = date0.strftime("%d-%m-%Y")
