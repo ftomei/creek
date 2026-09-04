@@ -11,23 +11,25 @@ QUADERNA = 2
 # Parameters of the sigmoid function found by fitting with observations
 # Ravone basin
 def getBasinParameters_Ravone():
-    zeroIdro = -0.2         # [m] minimum water level
-    hMax = 4.5              # [m] maximum water level
+    alpha_runoff = 0.22     # decay factor: % of runoff that leaves the system in one hour
+    zeroIdro = -0.15        # [m] minimum water level
+    hMax = 4.0              # [m] maximum water level
     k = 0.10                # factor controlling signal response (higher, increase level)
     referenceLevel = 1.25   # [m]
-    swc0 = 22               # [mm] swc value to be associated with the reference Level
-    m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
-    return zeroIdro, hMax, m, k, swc0
+    swc0 = 17               # [mm] swc value to be associated with the reference Level
+    m = (hMax - referenceLevel) / referenceLevel
+    return alpha_runoff, zeroIdro, hMax, m, k, swc0
 
 # Quaderna basin
 def getBasinParameters_Quaderna():
+    alpha_runoff = 0.18     # decay factor: % of runoff that leaves the system in one hour
     zeroIdro = 0.1          # [m] minimum water level
-    hMax = 2.5              # [m] maximum water level
-    k = 0.10                # factor controlling signal response (higher, increase level)
+    hMax = 2.6              # [m] maximum water level
+    k = 0.1                 # factor controlling signal response (higher, increase level)
     referenceLevel = 1.25   # [m]
     swc0 = 16               # [mm] swc value to be associated with the reference level
-    m = (hMax - (referenceLevel - zeroIdro)) / (referenceLevel - zeroIdro)
-    return zeroIdro, hMax, m, k, swc0
+    m = (hMax - referenceLevel) / referenceLevel
+    return alpha_runoff, zeroIdro, hMax, m, k, swc0
 
 
 # Water infiltration in deep soil layer [mm/hour]
@@ -36,6 +38,7 @@ def getSoilInfiltration(basin, deficit90):
     if basin == QUADERNA:
         infMax = 2.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
+    # default: Ravone
     else:
         infMax = 6.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
@@ -60,55 +63,60 @@ def maxCropInterception(currentDate):
 
 # Compute water level [m] from surface water content (swc) with basin specific parameters
 def estimateLevel(swc, hMax, m, k, zeroIdro, swc0):
-    waterLevel = hMax / (1 + m * np.exp(-k * (swc - swc0))) + zeroIdro
+    d0 = hMax / (1.0 + m * np.exp(k * swc0)) - zeroIdro
+    waterLevel = hMax / (1.0 + m * np.exp(-k * (swc - swc0))) - d0 * (1.0 - min(swc, swc0)/swc0)
     return waterLevel
 
 
 # Main function transforming inflows in outflows
-def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, currentDeficit90, currentLeafIntercepted):
-    alpha = 0.18     # runoff decay factor, % of runoff that leaves the system in one hour
+def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, currentWHC, currentLeafIntercepted, isBaseFlow):
     nrIntervals = 3600 / timeStep
+
+    # basin parameters
+    if basin == RAVONE:
+        alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
+    elif basin == QUADERNA:
+        alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Quaderna()
+    else:
+        alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
+
+    # base flow
+    baseFlow = 0.0
+    if isBaseFlow:
+        baseFlow = 0.2 / nrIntervals
 
     # [mm] seasonal max crop interception 
     maxInterception = max(0, maxCropInterception(currentDate) - currentLeafIntercepted)
-    currentLeafInterception = min(rainfall * 0.2, maxInterception)
-    newLeafIntercepted = currentLeafIntercepted + currentLeafInterception
+    leafInterception = min(rainfall * 0.2, maxInterception)
+    newLeafIntercepted = currentLeafIntercepted + leafInterception
 
     # rain reaching the soil [mm]
-    rainReachingSoil = rainfall - currentLeafInterception
+    rainReachingSoil = rainfall - leafInterception
     # maximum amount of water that can infiltrate into deep soil [mm]
-    maxDeepInfiltration = getSoilInfiltration(basin, currentDeficit90) / nrIntervals
+    maxDeepInfiltration = getSoilInfiltration(basin, currentWHC) / nrIntervals
     # current deep infiltration [mm]
     currentDeepInfiltration = min(rainReachingSoil, maxDeepInfiltration)
 
     if currentSwc < 0:
-        # phase 1: rain reaching the ground infiltrates completely until it fills the surface storage (first 35 cm)
+        # phase 1: rain reaching the ground infiltrates completely until surface storage is under field capacity
         newSwc = currentSwc + rainReachingSoil - currentDeepInfiltration
-        newDeficit90 = currentDeficit90 - rainReachingSoil
+        newWHC = currentWHC - rainReachingSoil
     else:
         # phase 2: rain only partially infiltrates and begins to produce runoff
-        runoff = currentSwc * (alpha / nrIntervals)
-        newSwc = max(currentSwc + rainReachingSoil - runoff - currentDeepInfiltration, 0)
-        newDeficit90 = currentDeficit90 - currentDeepInfiltration
+        runoff = currentSwc * (alphaRunoff / nrIntervals)
+        newSwc = currentSwc + rainReachingSoil + baseFlow - runoff - currentDeepInfiltration
+        newWHC = currentWHC - currentDeepInfiltration + baseFlow
 
-    # basin parameters
-    if basin == RAVONE:
-        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
-    elif basin == QUADERNA:
-        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Quaderna()
-    else:
-        zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
-
-    if newSwc > 0:
+    if newSwc > 0.:
         waterLevel = estimateLevel(newSwc, hMax, m, k, zeroIdro, swc0)      # [m]
     else:
         waterLevel = zeroIdro                                               # [m]
 
-    return waterLevel, newSwc, newDeficit90, newLeafIntercepted
+    return waterLevel, newSwc, newWHC, newLeafIntercepted
 
 
 # main looping over precipitation a calling other functions
-def creek(basin, df_in, precFieldName, deficit35, deficit90):
+def creek(basin, df_in, precFieldName, deficit35, deficit90, isBaseFlow):
     # initialize
     df_out = df_in
 
@@ -118,8 +126,8 @@ def creek(basin, df_in, precFieldName, deficit35, deficit90):
     # [m] estimated Level vector
     nrData = len(precipitation)
     estLevel = np.zeros(nrData)
-    swcout = np.zeros(nrData)
-    whc90out = np.zeros(nrData)
+    swc_out = np.zeros(nrData)
+    whc_out = np.zeros(nrData)
 
     # initialize with first value
     currentDate = df_in.index[0]
@@ -127,24 +135,24 @@ def creek(basin, df_in, precFieldName, deficit35, deficit90):
     dateStr = currentDate.strftime("%Y_%m_%d")
 
     # [mm] current water storages (swc: surface and first soil layer)
-    swc = min(-deficit35, 0)
-    currentWHC90 = deficit90
-    LeafIntercepted = 0
+    currentSWC = -deficit35
+    currentWHC = deficit90
+    LeafIntercepted = 0.
 
     # main cycle
     for j in range(nrData):
         currentDate = df_in.index[j]
 
         # compute current surface water content and water level
-        waterLevel, swc, currentWHC90, LeafIntercepted = computeWaterLevel(basin, currentDate, timeStep, precipitation[j], swc,
-                                                                           currentWHC90, LeafIntercepted)
+        waterLevel, currentSWC, currentWHC, LeafIntercepted = computeWaterLevel(basin, currentDate, timeStep, precipitation[j],
+                                                              currentSWC, currentWHC, LeafIntercepted, isBaseFlow)
         estLevel[j] = waterLevel
-        swcout[j] = swc
-        whc90out[j] = currentWHC90
+        swc_out[j] = currentSWC
+        whc_out[j] = currentWHC
 
     # estimated datasets
     df_out['estLevel'] = estLevel
-    df_out['swc'] = swcout
-    df_out['WHC90'] = whc90out
+    df_out['swc'] = swc_out
+    df_out['WHC90'] = whc_out
 
     return df_out

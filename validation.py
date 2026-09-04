@@ -17,12 +17,19 @@ from Criteria_Rainbo_model import *
 
 
 def nearest_date(items, pivot):
+    deltaMin = 999
+    index = -1
     if len(items) > 0:
         for t in range(len(items)):
             delta = (items[t] - pivot) / np.timedelta64(1, 'h')     # hours
-            if (delta >= -0.5) and (delta <= 3.0):
-                return items[t]
-    return -1
+            if abs(delta) < abs(deltaMin):
+                deltaMin = delta
+                index = t
+
+    if deltaMin != 999:
+        return True, items[index]
+    else:
+        return False, -1
 
 
 # parameters for peaks recognitions
@@ -30,26 +37,34 @@ peak_hmin = 0.2  # [m] hmin for peak search
 peak_prominence = 0.1  # [m] minimum peak prominence
 peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
-basin = QUADERNA
+basin = RAVONE
 
 if basin == QUADERNA:
     inputPath = "./INPUT/QUADERNA/"
     outputPath = "./OUTPUT/QUADERNA/"
     criteriaOutputFileName = inputPath + "CriteriaOutput/Quaderna.csv"
-    shift_default = 1.5         # hours
+    shift_default = 1.0         # hours
     all_files = glob.glob(inputPath + "Quaderna_*.csv")
     precName = 'P30'
 elif basin == RAVONE:
     inputPath = "./INPUT/RAVONE/"
     outputPath = "./OUTPUT/RAVONE/"
     criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
-    shift_default = 0.5         # hours
+    shift_default = 0.25         # hours
+    all_files = glob.glob(inputPath + "Test_*.csv")
+    precName = 'P15'
+else:                   # default: Ravone
+    basin = RAVONE
+    inputPath = "./INPUT/RAVONE/"
+    outputPath = "./OUTPUT/RAVONE/"
+    criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
+    shift_default = 0.5  # hours
     all_files = glob.glob(inputPath + "Test_*.csv")
     precName = 'P15'
     
 # insert complete filename to read a single test case or wildcard for all cases
-df_daily = pd.read_csv(criteriaOutputFileName)
-df_daily.index = pd.to_datetime(df_daily['DATE'])
+deficit_daily = pd.read_csv(criteriaOutputFileName)
+deficit_daily.index = pd.to_datetime(deficit_daily['DATE'])
 
 # loop on several cases
 list_scores = []
@@ -61,16 +76,22 @@ for fileName in all_files:
     # compute time step
     date0 = df_in.index[0]
     date1 = df_in.index[1]
-    timeStep = (date1 - date0).seconds # [s]
+    timeStep = (date1 - date0).seconds      # [s]
     nrIntervals = int(3600 / timeStep)
 
-    #print(fileName, date0)
+    previousDate = (date0 - timedelta(days=1)).strftime("%Y-%m-%d")
+    dateString = date0.strftime("%Y-%m-%d")
+
     # [mm] water holding capacity from daily preprocessed data
-    deficit35 = max(df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_35.values[0],0) #WHC = df.WHC[0]
-    deficit90 = df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_90.values[0] 
+    deficit35 = deficit_daily[deficit_daily.index == previousDate].DEFICIT_35.values[0]
+    deficit90 = deficit_daily[deficit_daily.index == previousDate].DEFICIT_90.values[0]
+
+    isBaseFlow = (deficit35 < 0 and deficit90 < 0)
+    # cut surface storage
+    deficit35 = max(deficit35, -2.0)        # [mm]
  
     # Run Criteria-Rainbo model with df_in in input and wch35/whc90
-    df = creek(basin, df_in, precName, deficit35, deficit90)
+    df = creek(basin, df_in, precName, deficit35, deficit90, isBaseFlow)
     
     positive_swc = df.index[df.swc > 0].strftime("%d-%m %H:%M").tolist()   
     r_start = positive_swc[0] if len(positive_swc) > 0 else 'No RunOff'
@@ -100,29 +121,33 @@ for fileName in all_files:
     array_peak_obs = df_max.maxOBS.dropna()
     array_peak_est = df_max.maxEST.dropna()
 
-    dt = []
-    dm = []
+    dt = []         # [hours]
+    dlevel = []     # [m]
     # loop sulle date dei massimi osservati per associarli con i previsti
     for timeIndex in array_peak_est.index:
-        nearest = nearest_date(array_peak_obs.index, timeIndex)  # trova l'ora del picco più vicino a quello osservato
-        if nearest != -1:
+        isOk, nearest = nearest_date(array_peak_obs.index, timeIndex)       # trova l'ora del picco più vicino a quello osservato
+        if isOk:
             dt.append((nearest - timeIndex) / np.timedelta64(1, 'h'))       # calcola il time shift
-            dm.append(df_max.maxEST[timeIndex] - df_max.maxOBS[nearest])    # calcola l'errore
+            dlevel.append(df_max.maxEST[timeIndex] - df_max.maxOBS[nearest])    # calcola l'errore
 
     # mean peaks characteristics
-    mPeak_anti = round(np.mean(dt), 2)
-    mPeak_err = round(np.mean(dm), 2)
+    mPeak_anti = np.nan
+    mPeak_err = np.nan
+    if len(dt) > 0:
+        mPeak_anti = round(np.mean(dt), 2)
+        # mPeak_err = max(level_peaks_est) - max(level_peaks_obs)
+        mPeak_err = np.mean(dlevel)
+        mPeak_err = round(mPeak_err, 2)
 
+    # correlation
     if (vest == vest[0]).all():
         # tutti dati uguali: no runoff event
         r = np.nan
         r_shift = np.nan
+        RMSE = np.nan
     else:
         # shift estimated data
-        if mPeak_anti >= 0:
-            shiftNr = round(mPeak_anti * nrIntervals)
-        else:
-            shiftNr = round(shift_default * nrIntervals)
+        shiftNr = round(shift_default * nrIntervals)
         vest_shift = shift(vest, shiftNr)
 
         r, p_value = pearsonr(vobs, vest)
@@ -133,12 +158,11 @@ for fileName in all_files:
         RMSE = np.sqrt(((vest_shift - vobs) ** 2).mean())
         RMSE = round(RMSE, 3)
 
-        string_ini = date0.strftime("%d-%m-%Y")
-        val_evento = [string_ini, deficit35, r, r_shift, RMSE, mPeak_err, mPeak_anti]
+        val_evento = [dateString, deficit35, r, r_shift, RMSE, mPeak_err, mPeak_anti]
         list_scores.append(val_evento)
 
     # print
-    print("Evento: ", string_ini, "WHC35: ", deficit35, "\tWHC90: ", deficit90,
+    print("Evento: ", dateString, "WHC35: ", deficit35, "\tWHC90: ", deficit90,
           "\tRaincum: ", round(raincum, 1), "\tRunoff start: ", r_start)
  
     # plot
@@ -152,7 +176,7 @@ for fileName in all_files:
         ax.set_ylim([0, 2.5])
     else:
         # Ravone
-        ax.set_ylim([-0.2, 4.0])
+        ax.set_ylim([-0.2, 3.5])
     ax.grid(linestyle=':')
     ax.plot(xo, vobs, 'r.', label='Observed')
     ax.plot(xo, vest, label='Estimated')
@@ -162,12 +186,13 @@ for fileName in all_files:
     plt.plot(df_max.maxOBS.index, df_max.maxOBS.values, "x")
     plt.plot(df_max.maxEST.index, df_max.maxEST.values, "x")
     plt.legend()
-    plt.savefig(outputPath + "Prev_" + string_ini + ".png", bbox_inches='tight', dpi=100)
+    plt.savefig(outputPath + "Prev_" + dateString + ".png", bbox_inches='tight', dpi=100)
         
     # write csv out with level, whc, infiltration
-    df_max.to_csv(outputPath + "Max_" + string_ini + ".csv")
-    df.to_csv(outputPath + "Data_" + string_ini + ".csv", columns=[precName,'WHC90','swc','estLevel','Livello'])
+    df_max.to_csv(outputPath + "Max_" + dateString + ".csv")
+    df.to_csv(outputPath + "Data_" + dateString + ".csv", columns=[precName,'WHC90','swc','estLevel','Livello'])
 
 df_out = pd.DataFrame(list_scores, columns=["date", "DEFICIT35", "R", "R_SHIFT", "RMSE", "mP_error", "mP_ant"])
-df_out.to_csv(outputPath + "stat_tests.csv")  # salva su csv
+df_out.to_csv(outputPath + "stat_tests.csv")
+
 print(df_out.describe())
