@@ -6,13 +6,14 @@ import numpy as np
 
 RAVONE = 1
 QUADERNA = 2
+ZENA = 3
 
 
 # Parameters of the sigmoid function found by fitting with observations
 # Ravone basin
 def getBasinParameters_Ravone():
     alpha_runoff = 0.22     # decay factor: % of runoff that leaves the system in one hour
-    zeroIdro = -0.15        # [m] minimum water level
+    zeroIdro = -0.2        # [m] minimum water level
     hMax = 4.0              # [m] maximum water level
     k = 0.10                # factor controlling signal response (higher, increase level)
     referenceLevel = 1.25   # [m]
@@ -23,9 +24,20 @@ def getBasinParameters_Ravone():
 # Quaderna basin
 def getBasinParameters_Quaderna():
     alpha_runoff = 0.18     # decay factor: % of runoff that leaves the system in one hour
-    zeroIdro = 0.1          # [m] minimum water level
+    zeroIdro = 0.0          # [m] minimum water level
     hMax = 2.6              # [m] maximum water level
     k = 0.1                 # factor controlling signal response (higher, increase level)
+    referenceLevel = 1.25   # [m]
+    swc0 = 16               # [mm] swc value to be associated with the reference level
+    m = (hMax - referenceLevel) / referenceLevel
+    return alpha_runoff, zeroIdro, hMax, m, k, swc0
+
+# Zena basin
+def getBasinParameters_Zena():
+    alpha_runoff = 0.18     # decay factor: % of runoff that leaves the system in one hour
+    zeroIdro = 0.0          # [m] minimum water level
+    hMax = 3.0              # [m] maximum water level
+    k = 0.12                # factor controlling signal response (higher, increase level)
     referenceLevel = 1.25   # [m]
     swc0 = 16               # [mm] swc value to be associated with the reference level
     m = (hMax - referenceLevel) / referenceLevel
@@ -38,12 +50,17 @@ def getSoilInfiltration(basin, deficit90):
     if basin == QUADERNA:
         infMax = 2.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
+    elif basin == ZENA:
+        infMax = 2.0        # mm/hour representative of very dry soil
+        infMin = 0.2        # mm/hour representative of saturated soil
     # default: Ravone
     else:
         infMax = 6.0        # mm/hour representative of very dry soil
         infMin = 0.2        # mm/hour representative of saturated soil
+
     deficit90max = 100
     deficit90min = -40
+
     if deficit90 > deficit90max:
         currentInf = infMax
     elif deficit90 < deficit90min:
@@ -51,6 +68,7 @@ def getSoilInfiltration(basin, deficit90):
     else:
         ratio = (deficit90 - deficit90min) / (deficit90max - deficit90min)
         currentInf = infMin + ratio*ratio * infMax
+
     return currentInf
 
 
@@ -77,6 +95,8 @@ def computeWaterLevel(basin, currentDate, timeStep, rainfall, currentSwc, curren
         alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
     elif basin == QUADERNA:
         alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Quaderna()
+    elif basin == ZENA:
+        alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Zena()
     else:
         alphaRunoff, zeroIdro, hMax, m, k, swc0 = getBasinParameters_Ravone()
 

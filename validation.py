@@ -13,7 +13,7 @@ import glob
 from datetime import datetime, timedelta
 import sys
 sys.path.append("../")                      # cerca i moduli anche nella dir sopra
-from Criteria_Rainbo_model import *
+import Criteria_Rainbo_model as rainbo
 
 
 def nearest_date(items, pivot):
@@ -37,30 +37,32 @@ peak_hmin = 0.2  # [m] hmin for peak search
 peak_prominence = 0.1  # [m] minimum peak prominence
 peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
-basin = RAVONE
+basin = rainbo.ZENA
 
-if basin == QUADERNA:
+if basin == rainbo.QUADERNA:
     inputPath = "./INPUT/QUADERNA/"
     outputPath = "./OUTPUT/QUADERNA/"
     criteriaOutputFileName = inputPath + "CriteriaOutput/Quaderna.csv"
     shift_default = 1.0         # hours
     all_files = glob.glob(inputPath + "Quaderna_*.csv")
     precName = 'P30'
-elif basin == RAVONE:
+if basin == rainbo.ZENA:
+    inputPath = "./INPUT/ZENA/"
+    outputPath = "./OUTPUT/ZENA/"
+    criteriaOutputFileName = inputPath + "CriteriaOutput/Zena.csv"
+    shift_default = 1.5         # hours
+    all_files = glob.glob(inputPath + "Test_*.csv")
+    precName = 'P30'
+elif basin == rainbo.RAVONE:
     inputPath = "./INPUT/RAVONE/"
     outputPath = "./OUTPUT/RAVONE/"
     criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
     shift_default = 0.25         # hours
     all_files = glob.glob(inputPath + "Test_*.csv")
     precName = 'P15'
-else:                   # default: Ravone
-    basin = RAVONE
-    inputPath = "./INPUT/RAVONE/"
-    outputPath = "./OUTPUT/RAVONE/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
-    shift_default = 0.5  # hours
-    all_files = glob.glob(inputPath + "Test_*.csv")
-    precName = 'P15'
+else:
+    print("Wrong basin: " + basin)
+    exit()
     
 # insert complete filename to read a single test case or wildcard for all cases
 deficit_daily = pd.read_csv(criteriaOutputFileName)
@@ -91,7 +93,7 @@ for fileName in all_files:
     deficit35 = max(deficit35, -2.0)        # [mm]
  
     # Run Criteria-Rainbo model with df_in in input and wch35/whc90
-    df = creek(basin, df_in, precName, deficit35, deficit90, isBaseFlow)
+    df = rainbo.creek(basin, df_in, precName, deficit35, deficit90, isBaseFlow)
     
     positive_swc = df.index[df.swc > 0].strftime("%d-%m %H:%M").tolist()   
     r_start = positive_swc[0] if len(positive_swc) > 0 else 'No RunOff'
@@ -172,7 +174,7 @@ for fileName in all_files:
     ax = plt.gca()
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
     ax.xaxis.set_major_formatter(xfmt)
-    if basin == QUADERNA:
+    if basin == rainbo.QUADERNA:
         ax.set_ylim([0, 2.5])
     else:
         # Ravone
