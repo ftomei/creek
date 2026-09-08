@@ -34,7 +34,7 @@ def nearest_date(items, pivot):
 
 # parameters for peaks recognitions
 peak_hmin = 0.2  # [m] hmin for peak search
-peak_prominence = 0.1  # [m] minimum peak prominence
+peak_prominence = 0.2  # [m] minimum peak prominence
 peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
 
 basin = rainbo.ZENA
@@ -46,7 +46,7 @@ if basin == rainbo.QUADERNA:
     shift_default = 1.0         # hours
     all_files = glob.glob(inputPath + "Quaderna_*.csv")
     precName = 'P30'
-if basin == rainbo.ZENA:
+elif basin == rainbo.ZENA:
     inputPath = "./INPUT/ZENA/"
     outputPath = "./OUTPUT/ZENA/"
     criteriaOutputFileName = inputPath + "CriteriaOutput/Zena.csv"
@@ -61,7 +61,7 @@ elif basin == rainbo.RAVONE:
     all_files = glob.glob(inputPath + "Test_*.csv")
     precName = 'P15'
 else:
-    print("Wrong basin: " + basin)
+    print("Wrong basin: " + str(basin))
     exit()
     
 # insert complete filename to read a single test case or wildcard for all cases
