@@ -19,7 +19,7 @@ elif basin == rainbo.QUADERNA:
     fileName = 'Quaderna_2024_10_19.csv'
     #fileName = 'Quaderna_2015_03_25.csv'
 elif basin == rainbo.ZENA:
-    fileName = 'Test_2024-12-08.csv'
+    fileName = 'Test_2024-09-17.csv'
 else:
     print("Wrong basin")
     exit()
@@ -63,7 +63,11 @@ sns.lineplot(data=df_out, x=df_out.index.strftime("%d/%m %H:%M"),
 # y axes
 ax.set_ylabel('Water level [m]')
 ax.grid(linestyle='')
-levelObsMax = int(df_out['Livello'].dropna().max()) + 1
+
+levelObsMax = 0
+if not df_out['Livello'].isna().all(): 
+  levelObsMax = int(df_out['Livello'].dropna().max()) + 1
+  
 levelEstMax = int(max(df_out['estLevel'])) + 1
 levelMax = max(levelObsMax, levelEstMax)
 levelMax = max(levelMax, 3.0)                   # [m]
