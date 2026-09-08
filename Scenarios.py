@@ -111,4 +111,3 @@ outputFileName = outputPath + "Scenarios_" + firstDate + ".png"
 plt.savefig(outputFileName, bbox_inches='tight', dpi=100)
 
 plt.show()
-
