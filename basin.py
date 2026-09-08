@@ -30,4 +30,4 @@ if basin == rainbo.ZENA:
     all_files = glob.glob(inputPath + "Test_*.csv")
     precName = 'P30'
     alarmLevels = [0.7, 1.3, 2.2]
-    shift_hours = 1.5
+    shift_hours = 1.0

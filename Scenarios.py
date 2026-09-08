@@ -19,7 +19,7 @@ elif basin == rainbo.QUADERNA:
     fileName = 'Quaderna_2024_10_19.csv'
     #fileName = 'Quaderna_2015_03_25.csv'
 elif basin == rainbo.ZENA:
-    fileName = 'Test_2024-09-17.csv'
+    fileName = 'NoObs_2024-10-19.csv'
 else:
     print("Wrong basin")
     exit()
