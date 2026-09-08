@@ -1,40 +1,34 @@
 # creek model - Tomei & Grazzini
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import timedelta
 from matplotlib.ticker import MultipleLocator
-import Criteria_Rainbo_model as rainbo
+
+from basin import *
 
 NODATA = -9999
 
+
 # select case
-basin = rainbo.QUADERNA
-#fileName = 'Test_2024-10-19.csv'   # Ravone
-#fileName = 'Quaderna_2024_10_19.csv'
-fileName = 'Quaderna_2015_03_25.csv'
-timeName = 'Dataf'
-
+fileName = ""
 if basin == rainbo.RAVONE:
-    inputPath = "./INPUT/RAVONE/"
-    outputPath = "./OUTPUT/RAVONE/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
-    precName = 'P15'
-    alarmLevels = [0.4, 1.4, 2.0]
+    fileName = 'Test_2024-10-19.csv'
+elif basin == rainbo.QUADERNA:
+    fileName = 'Quaderna_2024_10_19.csv'
+    #fileName = 'Quaderna_2015_03_25.csv'
+elif basin == rainbo.ZENA:
+    fileName = 'Test_2024-12-08.csv'
+else:
+    print("Wrong basin")
+    exit()
 
-if basin == rainbo.QUADERNA:
-    inputPath = "./INPUT/QUADERNA/"
-    outputPath = "./OUTPUT/QUADERNA/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Quaderna.csv"
-    precName = 'P30'
-    alarmLevels = [0.9, 1.3, 1.7]
 
 # select case
 df_in = pd.read_csv(inputPath + fileName)
-df_in.index = pd.to_datetime(df_in[timeName])
-del df_in[timeName]
+df_in.index = pd.to_datetime(df_in['Dataf'])
+del df_in['Dataf']
 
 # compute time step
 date0 = df_in.index[0]
@@ -72,7 +66,7 @@ ax.grid(linestyle='')
 levelObsMax = int(df_out['Livello'].dropna().max()) + 1
 levelEstMax = int(max(df_out['estLevel'])) + 1
 levelMax = max(levelObsMax, levelEstMax)
-levelMax = max(levelMax, 2.5)                   # [m]
+levelMax = max(levelMax, 3.0)                   # [m]
 ax.set_ylim([0.0, levelMax])
 
 # secondary axes: prec
@@ -106,7 +100,6 @@ ax.axhline(alarmLevels[2], linestyle='dashed', color='red', label='alarm')
 # x axis
 ax.xaxis.set_major_locator(MultipleLocator(6))
 ax.xaxis.set_minor_locator(MultipleLocator(1))
-#ax.grid(linestyle=':')
 ax.set(xlabel=None)
 
 # title

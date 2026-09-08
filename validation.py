@@ -2,6 +2,7 @@
 # May 2022, Revisited March 2024, -> Criteria-Rainbo
 # update July 2025
 
+
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import pandas as pd
@@ -9,11 +10,9 @@ import numpy as np
 from scipy.ndimage import shift
 from scipy.stats import pearsonr
 from scipy.signal import find_peaks
-import glob
 from datetime import datetime, timedelta
-import sys
-sys.path.append("../")                      # cerca i moduli anche nella dir sopra
-import Criteria_Rainbo_model as rainbo
+
+from basin import *
 
 
 def nearest_date(items, pivot):
@@ -36,33 +35,6 @@ def nearest_date(items, pivot):
 peak_hmin = 0.2  # [m] hmin for peak search
 peak_prominence = 0.2  # [m] minimum peak prominence
 peak_width = 2  # [timestep] minimal horizontal distance in samples between neighbouring peaks
-
-basin = rainbo.ZENA
-
-if basin == rainbo.QUADERNA:
-    inputPath = "./INPUT/QUADERNA/"
-    outputPath = "./OUTPUT/QUADERNA/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Quaderna.csv"
-    shift_default = 1.0         # hours
-    all_files = glob.glob(inputPath + "Quaderna_*.csv")
-    precName = 'P30'
-elif basin == rainbo.ZENA:
-    inputPath = "./INPUT/ZENA/"
-    outputPath = "./OUTPUT/ZENA/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Zena.csv"
-    shift_default = 1.5         # hours
-    all_files = glob.glob(inputPath + "Test_*.csv")
-    precName = 'P30'
-elif basin == rainbo.RAVONE:
-    inputPath = "./INPUT/RAVONE/"
-    outputPath = "./OUTPUT/RAVONE/"
-    criteriaOutputFileName = inputPath + "CriteriaOutput/Ravone.csv"
-    shift_default = 0.25         # hours
-    all_files = glob.glob(inputPath + "Test_*.csv")
-    precName = 'P15'
-else:
-    print("Wrong basin: " + str(basin))
-    exit()
     
 # insert complete filename to read a single test case or wildcard for all cases
 deficit_daily = pd.read_csv(criteriaOutputFileName)
@@ -149,7 +121,7 @@ for fileName in all_files:
         RMSE = np.nan
     else:
         # shift estimated data
-        shiftNr = round(shift_default * nrIntervals)
+        shiftNr = round(shift_hours * nrIntervals)
         vest_shift = shift(vest, shiftNr)
 
         r, p_value = pearsonr(vobs, vest)
