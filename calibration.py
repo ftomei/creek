@@ -1,6 +1,7 @@
 # Criteria-Rainbo model
 # calibration of logistic regression
 # December 2025 F.Grazzini, F.Tomei
+# Update October 2026
 
 import pandas as pd
 import numpy as np
@@ -11,17 +12,12 @@ from scipy.optimize import curve_fit
 
 from basin import *
 
+# basin parameters
+alpha_runoff, zeroIdro, hMax, m, k, swc0, baseFlow = rainbo.getBasinParameters(basin)
+
 
 # Compute water level [m] from surface water content (swc)
 def estimateLevel(swc, swc0, k):
-    if basin == rainbo.QUADERNA:
-        alphaRunoff, zeroIdro, hMax, m, k_est, swc0_est = rainbo.getBasinParameters_Quaderna()
-    elif basin == rainbo.ZENA:
-        alphaRunoff, zeroIdro, hMax, m, k_est, swc0_est = rainbo.getBasinParameters_Zena()
-    else:
-        # default: ravone
-        alphaRunoff, zeroIdro, hMax, m, k_est, swc0_est = rainbo.getBasinParameters_Ravone()
-
     d0 = hMax / (1.0 + m * np.exp(k * swc0)) - zeroIdro
     waterLevel = hMax / (1.0 + m * np.exp(-k * (swc - swc0))) - d0 * np.maximum(0.0, 1.0 - swc / swc0)
     return waterLevel
@@ -79,13 +75,8 @@ def main():
     print("r = ", r)
 
     ax = plt.gca()
-    # Ravone
-    ax.set_ylim([-0.2, 4.0])
 
-    if basin == rainbo.QUADERNA:
-        ax.set_ylim([0, 2.5])
-    elif basin == rainbo.ZENA:
-        ax.set_ylim([0, 3.0])
+    ax.set_ylim([zeroIdro, hMax])
 
     plt.show()
 

@@ -1,7 +1,7 @@
 import glob
 import Criteria_Rainbo_model as rainbo
 
-basin = rainbo.ZENA
+basin = rainbo.RAVONE
 
 if basin == rainbo.RAVONE:
     inputPath = "./INPUT/RAVONE/"

@@ -1,4 +1,6 @@
-# creek model - Tomei & Grazzini
+# Criteria-Rainbo model
+# sensitivity - Tomei & Grazzini
+# Update October 2026
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +11,6 @@ from matplotlib.ticker import MultipleLocator
 from basin import *
 
 NODATA = -9999
-
 
 # select case
 fileName = ""
@@ -23,7 +24,6 @@ elif basin == rainbo.ZENA:
 else:
     print("Wrong basin")
     exit()
-
 
 # select case
 df_in = pd.read_csv(inputPath + fileName)
@@ -42,12 +42,15 @@ df_daily.index = pd.to_datetime(df_daily['DATE'])
 deficit35 = df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_35.values[0]
 deficit90 = df_daily[df_daily.index == (date0 - timedelta(days=1)).strftime("%Y-%m-%d")].DEFICIT_90.values[0]
 
-isBaseFlow = (deficit35 < 0 and deficit90 < 0)
-# cut surface storage
-deficit35 = max(deficit35, -2.0)  # [mm]
+# basin parameters
+alpha_runoff, zeroIdro, hMax, m, k, swc0, baseFlow = rainbo.getBasinParameters(basin)
+
+startLevel = zeroIdro
+if deficit35 < 0:
+    startLevel = zeroIdro - deficit35 * 0.01
 
 # compute
-df_out = rainbo.creek(basin, df_in, precName, deficit35, deficit90, isBaseFlow)
+df_out = rainbo.creek(basin, df_in, precName, deficit35, deficit90, startLevel)
 
 # prepare the figure
 plt.subplots(figsize=(15, 7))
@@ -71,7 +74,7 @@ if not df_out['Livello'].isna().all():
 levelEstMax = int(max(df_out['estLevel'])) + 1
 levelMax = max(levelObsMax, levelEstMax)
 levelMax = max(levelMax, 3.0)                   # [m]
-ax.set_ylim([0.0, levelMax])
+ax.set_ylim([zeroIdro, levelMax])
 
 # secondary axes: prec
 # duplicate x axes
@@ -88,12 +91,16 @@ axp.set_ylabel('Rainfall [mm]')
 # generate sensitivy changing values of WHC
 whc90 = [-50, 0, 50, 100, 150, 200]
 colors = ['black', 'red', 'orange', 'lightgreen', 'green', 'pink']
+
 for i in range(len(whc90)):
     # initial surface content
-    whc35 = whc90[i] * 0.3
-    whc35 = max(whc35, -2.0)  # [mm]
-    isBaseFlow = (whc90[i] < 0)
-    df_out = rainbo.creek(basin, df_in, precName, whc35, whc90[i], isBaseFlow)
+    whc35 = whc90[i] * 0.35
+    startLevel = zeroIdro
+    if whc35 < 0:
+        startLevel = zeroIdro - whc35 * 0.01
+
+    df_out = rainbo.creek(basin, df_in, precName, whc35, whc90[i], startLevel)
+
     sns.lineplot(data=df_out, x=df_out.index.strftime("%d/%m %H:%M"), y='estLevel',
                  label='Deficit = ' + str(whc90[i]), color=colors[i], linewidth=2, linestyle="dotted", ax=ax)
 

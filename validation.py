@@ -1,6 +1,6 @@
-# Creek computing one step at time (like in real time).
-# May 2022, Revisited March 2024, -> Criteria-Rainbo
-# update July 2025
+# Criteria-Rainbo model
+# Creek computing one step at time (like in real time)
+# update October 2026
 
 
 import matplotlib.pyplot as plt
@@ -60,18 +60,21 @@ for fileName in all_files:
     deficit35 = deficit_daily[deficit_daily.index == previousDate].DEFICIT_35.values[0]
     deficit90 = deficit_daily[deficit_daily.index == previousDate].DEFICIT_90.values[0]
 
-    isBaseFlow = (deficit35 < 0 and deficit90 < 0)
-    # cut surface storage
-    deficit35 = max(deficit35, -2.0)        # [mm]
+    # basin parameters
+    alpha_runoff, zeroIdro, hMax, m, k, swc0, baseFlow = rainbo.getBasinParameters(basin)
+
+    startLevel = zeroIdro
+    if deficit35 < 0:
+        startLevel = zeroIdro - deficit35 * 0.01
  
     # Run Criteria-Rainbo model with df_in in input and wch35/whc90
-    df = rainbo.creek(basin, df_in, precName, deficit35, deficit90, isBaseFlow)
+    df = rainbo.creek(basin, df_in, precName, deficit35, deficit90, startLevel)
     
     positive_swc = df.index[df.swc > 0].strftime("%d-%m %H:%M").tolist()   
     r_start = positive_swc[0] if len(positive_swc) > 0 else 'No RunOff'
-    raincum = df[precName].sum()
+    rainCum = df[precName].sum()
 
-    # remove roows with empty data in obs
+    # remove rows with empty data in obs
     df_clean = df[df['Livello'].notna()]
 
     # estimation array
@@ -137,7 +140,7 @@ for fileName in all_files:
 
     # print
     print("Evento: ", dateString, "WHC35: ", deficit35, "\tWHC90: ", deficit90,
-          "\tRaincum: ", round(raincum, 1), "\tRunoff start: ", r_start)
+          "\tRaincum: ", round(rainCum, 1), "\tRunoff start: ", r_start)
  
     # plot
     plt.figure(figsize=(10, 5))
@@ -146,11 +149,8 @@ for fileName in all_files:
     ax = plt.gca()
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
     ax.xaxis.set_major_formatter(xfmt)
-    if basin == rainbo.QUADERNA:
-        ax.set_ylim([0, 2.5])
-    else:
-        # Ravone
-        ax.set_ylim([-0.2, 3.5])
+    ax.set_ylim([zeroIdro, hMax])
+
     ax.grid(linestyle=':')
     ax.plot(xo, vobs, 'r.', label='Observed')
     ax.plot(xo, vest, label='Estimated')
